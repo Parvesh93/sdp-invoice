@@ -2,8 +2,11 @@ import { prisma } from "@/lib/prisma";
 import { getSettings } from "@/lib/settings";
 
 function getFinancialYear(date = new Date()) {
-  const year = date.getFullYear();
-  const month = date.getMonth(); // Jan = 0
+  const year =
+    date.getFullYear();
+
+  const month =
+    date.getMonth(); // Jan = 0
 
   const startYear =
     month >= 3
@@ -14,12 +17,16 @@ function getFinancialYear(date = new Date()) {
     startYear + 1;
 
   const endYearShort =
-    String(endYear).slice(-2);
+    String(endYear).slice(
+      -2
+    );
 
   return {
     startYear,
     endYear,
-    label: `${startYear}-${endYearShort}`,
+
+    label:
+      `${startYear}-${endYearShort}`,
   };
 }
 
@@ -38,19 +45,69 @@ export async function generateDocumentNumber() {
     `${prefix}/${financialYear.label}/`;
 
   /*
-   * Find the latest document belonging
-   * to this financial year.
+   * Financial year:
+   *
+   * 01-Apr-YYYY
+   * to
+   * 01-Apr-(YYYY + 1)
    */
-  const latestDocument =
-    await prisma.document.findFirst({
+  const financialYearStart =
+    new Date(
+      financialYear.startYear,
+      3,
+      1,
+      0,
+      0,
+      0,
+      0
+    );
+
+  const financialYearEnd =
+    new Date(
+      financialYear.endYear,
+      3,
+      1,
+      0,
+      0,
+      0,
+      0
+    );
+
+  /*
+   * IMPORTANT:
+   *
+   * Previously this used:
+   *
+   * documentNumber: {
+   *   startsWith: basePrefix
+   * }
+   *
+   * Prisma converts startsWith into SQL LIKE.
+   *
+   * On Hostinger MariaDB this caused:
+   *
+   * Illegal mix of collations
+   * utf8mb4_unicode_ci / utf8mb4_bin
+   *
+   * We therefore filter the financial year
+   * using DateTime fields in SQL and perform
+   * the prefix check in JavaScript.
+   */
+  const documents =
+    await prisma.document.findMany({
       where: {
-        documentNumber: {
-          startsWith: basePrefix,
+        documentDate: {
+          gte:
+            financialYearStart,
+
+          lt:
+            financialYearEnd,
         },
       },
 
       select: {
-        documentNumber: true,
+        documentNumber:
+          true,
       },
 
       orderBy: {
@@ -58,28 +115,51 @@ export async function generateDocumentNumber() {
       },
     });
 
-  let nextSequence = 1;
+  /*
+   * Find the latest document using the
+   * currently configured reference prefix.
+   */
+  const latestDocument =
+    documents.find(
+      (document) =>
+        document.documentNumber.startsWith(
+          basePrefix
+        )
+    );
 
-  if (latestDocument) {
+  let nextSequence =
+    1;
+
+  if (
+    latestDocument
+  ) {
     const lastPart =
-      latestDocument.documentNumber
+      latestDocument
+        .documentNumber
         .split("/")
         .pop();
 
     const lastSequence =
-      Number(lastPart);
+      Number(
+        lastPart
+      );
 
     if (
-      Number.isInteger(lastSequence) &&
+      Number.isInteger(
+        lastSequence
+      ) &&
       lastSequence > 0
     ) {
       nextSequence =
-        lastSequence + 1;
+        lastSequence +
+        1;
     }
   }
 
   const paddedSequence =
-    String(nextSequence).padStart(
+    String(
+      nextSequence
+    ).padStart(
       4,
       "0"
     );
