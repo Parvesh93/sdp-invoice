@@ -6,6 +6,8 @@ import { getSession } from "@/lib/auth";
 
 import AdminLayoutShell from "@/components/layout/admin-shell";
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminLayout({
   children,
 }: {
