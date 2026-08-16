@@ -1,0 +1,266 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+enum UserRole {
+  ADMIN
+  STAFF
+}
+
+enum DocumentType {
+  QUOTATION
+  ORDER_FORM
+}
+
+enum DocumentStatus {
+  DRAFT
+  PREVIEWED
+  APPROVED
+  SENT
+}
+
+enum RecipientType {
+  TO
+  CC
+}
+
+model User {
+  id       Int      @id @default(autoincrement())
+  name     String
+  email    String   @unique
+  password String
+  role     UserRole @default(STAFF)
+  isActive Boolean  @default(true)
+
+  permissions UserPermission[]
+
+  documents Document[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Category {
+  id          Int     @id @default(autoincrement())
+  name        String
+  description String? @db.Text
+  isActive    Boolean @default(true)
+
+  products Product[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Product {
+  id            Int     @id @default(autoincrement())
+  name          String
+  model         String?
+  description   String? @db.Text
+  standardPrice Decimal @db.Decimal(12, 2)
+
+  annexureContent String? @db.LongText
+
+  image    String?
+  brochure String?
+  isActive Boolean @default(true)
+
+  categoryId Int
+  category   Category @relation(fields: [categoryId], references: [id])
+
+  variants      ProductVariant[]
+  documentItems DocumentItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ProductVariant {
+  id Int @id @default(autoincrement())
+
+  name     String
+  isActive Boolean @default(true)
+
+  productId Int
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  documentItems DocumentItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Customer {
+  id           Int     @id @default(autoincrement())
+  nameFirmName String
+  email        String?
+  phone        String?
+  whatsapp     String?
+  gstNumber    String?
+  city         String?
+  state        String?
+  addressLine1 String?
+  addressLine2 String?
+  addressLine3 String?
+
+  documents Document[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Document {
+  id             Int            @id @default(autoincrement())
+  documentNumber String         @unique
+  documentType   DocumentType
+  status         DocumentStatus @default(DRAFT)
+
+  documentDate DateTime @default(now())
+  validityDays Int?
+
+  customerId Int?
+  customer   Customer? @relation(fields: [customerId], references: [id])
+
+  customerNameFirm String
+  customerPhone    String?
+  customerWhatsapp String?
+  customerGST      String?
+  customerCity     String?
+  customerState    String?
+  addressLine1     String?
+  addressLine2     String?
+  addressLine3     String?
+
+  subtotal        Decimal @db.Decimal(12, 2)
+  gstPercent      Decimal @db.Decimal(5, 2)
+  gstAmount       Decimal @db.Decimal(12, 2)
+  grandTotal      Decimal @db.Decimal(12, 2)
+  additionalNotes String? @db.Text
+
+  /**
+   * Document output snapshots
+   * These preserve the exact document configuration
+   * used when the quotation/order was created.
+   */
+  headerBannerSnapshot   String?
+  footerBannerSnapshot   String?
+  termsSnapshot          String? @db.LongText
+  warrantySnapshot       String? @db.LongText
+  quoteFooterSnapshot    String? @db.LongText
+  signatureImageSnapshot String?
+
+  approvedAt DateTime?
+  sentAt     DateTime?
+
+  createdById Int
+  createdBy   User @relation(fields: [createdById], references: [id])
+
+  items      DocumentItem[]
+  recipients DocumentRecipient[]
+  activities DocumentActivity[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model DocumentItem {
+  id Int @id @default(autoincrement())
+
+  documentId Int
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  productId Int?
+  product   Product? @relation(fields: [productId], references: [id])
+
+  variantId Int?
+  variant   ProductVariant? @relation(fields: [variantId], references: [id])
+
+  /**
+   * Historical snapshot fields
+   */
+  productName        String
+  productModel       String?
+  productDescription String? @db.Text
+  categoryName       String?
+  variantName        String?
+
+  annexureSnapshot String? @db.LongText
+
+  standardPrice Decimal  @db.Decimal(12, 2)
+  priceOverride Decimal? @db.Decimal(12, 2)
+  finalPrice    Decimal  @db.Decimal(12, 2)
+
+  quantity  Int
+  lineTotal Decimal @db.Decimal(12, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model DocumentRecipient {
+  id Int @id @default(autoincrement())
+
+  documentId Int
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  email String
+  type  RecipientType
+
+  createdAt DateTime @default(now())
+}
+
+model DocumentActivity {
+  id Int @id @default(autoincrement())
+
+  documentId Int
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  action      String
+  description String?
+
+  createdAt DateTime @default(now())
+}
+
+model Setting {
+  id    Int     @id @default(autoincrement())
+  key   String  @unique
+  value String? @db.Text
+  type  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum PermissionKey {
+  DOCUMENT_VIEW
+  DOCUMENT_CREATE
+  DOCUMENT_EDIT
+  DOCUMENT_APPROVE
+  DOCUMENT_SEND
+  DOCUMENT_DOWNLOAD
+
+  CUSTOMER_VIEW
+  CUSTOMER_CREATE
+  CUSTOMER_EDIT
+
+  PRODUCT_VIEW
+  PRODUCT_MANAGE
+
+  CATEGORY_VIEW
+  CATEGORY_MANAGE
+}
+
+model UserPermission {
+  id         Int           @id @default(autoincrement())
+  userId     Int
+  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permission PermissionKey
+  createdAt  DateTime      @default(now())
+
+  @@unique([userId, permission])
+}
