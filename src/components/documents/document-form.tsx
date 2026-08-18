@@ -12,6 +12,10 @@ import { useRouter } from "next/navigation";
    TYPES
 ========================================================= */
 
+type GstType =
+  | "CGST_SGST"
+  | "IGST";
+
 type Category = {
   id: number;
   name: string;
@@ -91,6 +95,10 @@ type ExistingDocument = {
     addressLine3: string;
   };
 
+  gstType?:
+    | "CGST_SGST"
+    | "IGST";
+
   gstPercent: string;
 
   additionalNotes: string;
@@ -134,6 +142,12 @@ type Props = {
   customers?: CustomerOption[];
 
   document?: ExistingDocument;
+
+  companyState: string;
+
+  defaultGstPercent: string;
+
+  defaultGstType: string;
 };
 
 /* =========================================================
@@ -173,15 +187,102 @@ function formatCurrency(
   ).format(value);
 }
 
+function normalizeState(
+  value:
+    | string
+    | null
+    | undefined
+) {
+  return String(
+    value ?? ""
+  )
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+}
+
+function normalizeGstType(
+  value:
+    | string
+    | null
+    | undefined
+): GstType {
+  return value === "IGST"
+    ? "IGST"
+    : "CGST_SGST";
+}
+
+function determineGstType({
+  customerState,
+  companyState,
+  fallback,
+}: {
+  customerState:
+    | string
+    | null
+    | undefined;
+
+  companyState:
+    | string
+    | null
+    | undefined;
+
+  fallback:
+    | string
+    | null
+    | undefined;
+}): GstType {
+  const normalizedCustomerState =
+    normalizeState(
+      customerState
+    );
+
+  const normalizedCompanyState =
+    normalizeState(
+      companyState
+    );
+
+  /*
+   * If both states are available,
+   * state comparison is authoritative.
+   */
+  if (
+    normalizedCustomerState &&
+    normalizedCompanyState
+  ) {
+    return normalizedCustomerState ===
+      normalizedCompanyState
+      ? "CGST_SGST"
+      : "IGST";
+  }
+
+  /*
+   * If state information is incomplete,
+   * use the default configured in Settings.
+   */
+  return normalizeGstType(
+    fallback
+  );
+}
+
 /* =========================================================
    COMPONENT
 ========================================================= */
 
 export default function DocumentForm({
   categories,
+
   products,
+
   customers = [],
+
   document,
+
+  companyState,
+
+  defaultGstPercent,
+
+  defaultGstType,
 }: Props) {
   const router =
     useRouter();
@@ -309,11 +410,13 @@ export default function DocumentForm({
                 item.quantity,
             })
           )
-        : [createEmptyRow()]
+        : [
+            createEmptyRow(),
+          ]
     );
 
   /* =======================================================
-     TOTALS
+     GST
   ======================================================= */
 
   const [
@@ -322,9 +425,26 @@ export default function DocumentForm({
   ] = useState(
     Number(
       document?.gstPercent ??
+        defaultGstPercent ??
         18
     )
   );
+
+  /*
+   * GST Type is calculated automatically
+   * from company state vs customer state.
+   */
+  const gstType: GstType =
+    determineGstType({
+      customerState:
+        customer.state,
+
+      companyState,
+
+      fallback:
+        document?.gstType ??
+        defaultGstType,
+    });
 
   const [
     additionalNotes,
@@ -375,14 +495,6 @@ export default function DocumentForm({
       customerId
     );
 
-    /*
-     * User selected:
-     *
-     * "Enter New Customer / Firm"
-     *
-     * Do not clear the existing values automatically.
-     * This avoids accidental data loss.
-     */
     if (!customerId) {
       return;
     }
@@ -391,7 +503,9 @@ export default function DocumentForm({
       customers.find(
         (item) =>
           item.id ===
-          Number(customerId)
+          Number(
+            customerId
+          )
       );
 
     if (!selected) {
@@ -406,9 +520,6 @@ export default function DocumentForm({
         selected.email ??
         "",
 
-      /*
-       * CC is document-specific.
-       */
       cc: "",
 
       phone:
@@ -548,7 +659,9 @@ export default function DocumentForm({
       products.find(
         (product) =>
           product.id ===
-          Number(productId)
+          Number(
+            productId
+          )
       );
 
     setRows(
@@ -592,7 +705,8 @@ export default function DocumentForm({
     index: number
   ) {
     if (
-      rows.length <= 1
+      rows.length <=
+      1
     ) {
       return;
     }
@@ -669,14 +783,72 @@ export default function DocumentForm({
 
         0
       );
-    }, [rows]);
+    }, [
+      rows,
+    ]);
 
+  /*
+   * Total GST
+   */
   const gstAmount =
     subtotal *
-    (Number(
-      gstPercent
-    ) /
-      100);
+    (
+      Number(
+        gstPercent
+      ) /
+      100
+    );
+
+  /*
+   * CGST + SGST breakup
+   */
+  const cgstPercent =
+    gstType ===
+    "CGST_SGST"
+      ? Number(
+          gstPercent
+        ) / 2
+      : 0;
+
+  const sgstPercent =
+    gstType ===
+    "CGST_SGST"
+      ? Number(
+          gstPercent
+        ) / 2
+      : 0;
+
+  /*
+   * IGST
+   */
+  const igstPercent =
+    gstType ===
+    "IGST"
+      ? Number(
+          gstPercent
+        )
+      : 0;
+
+  const cgstAmount =
+    subtotal *
+    (
+      cgstPercent /
+      100
+    );
+
+  const sgstAmount =
+    subtotal *
+    (
+      sgstPercent /
+      100
+    );
+
+  const igstAmount =
+    subtotal *
+    (
+      igstPercent /
+      100
+    );
 
   const grandTotal =
     subtotal +
@@ -692,9 +864,13 @@ export default function DocumentForm({
   ) {
     event.preventDefault();
 
-    setLoading(true);
+    setLoading(
+      true
+    );
 
-    setError("");
+    setError(
+      ""
+    );
 
     try {
       /* ---------------------------------------
@@ -702,7 +878,9 @@ export default function DocumentForm({
       --------------------------------------- */
 
       if (
-        !customer.nameFirmName.trim()
+        !customer
+          .nameFirmName
+          .trim()
       ) {
         throw new Error(
           "Name / Firm Name is required."
@@ -783,78 +961,66 @@ export default function DocumentForm({
             },
 
             body:
-              JSON.stringify(
-                {
-                  documentType,
+              JSON.stringify({
+                documentType,
 
-                  /*
-                   * We intentionally send
-                   * the customer snapshot.
-                   *
-                   * The Create API resolves /
-                   * creates the master Customer.
-                   */
-                  customer,
+                customer,
 
-                  /*
-                   * Optional hint.
-                   *
-                   * Currently the backend's
-                   * GST/email/phone matching
-                   * handles master resolution.
-                   *
-                   * Keeping this in the payload
-                   * makes later backend optimization
-                   * easy.
-                   */
-                  selectedCustomerId:
-                    selectedCustomerId
-                      ? Number(
-                          selectedCustomerId
-                        )
-                      : null,
+                selectedCustomerId:
+                  selectedCustomerId
+                    ? Number(
+                        selectedCustomerId
+                      )
+                    : null,
 
-                  gstPercent,
+                /*
+                 * GST
+                 *
+                 * Backend must calculate
+                 * amounts again before saving.
+                 */
+                gstType,
 
-                  additionalNotes,
+                gstPercent,
 
-                  saveAsDraft:
-                    submitMode ===
-                    "draft",
+                additionalNotes,
 
-                  items:
-                    validRows.map(
-                      (
-                        row
-                      ) => ({
-                        productId:
-                          Number(
-                            row.productId
-                          ),
+                saveAsDraft:
+                  submitMode ===
+                  "draft",
 
-                        variantId:
-                          row.variantId
-                            ? Number(
-                                row.variantId
-                              )
-                            : null,
+                items:
+                  validRows.map(
+                    (
+                      row
+                    ) => ({
+                      productId:
+                        Number(
+                          row.productId
+                        ),
 
-                        quantity:
-                          Number(
-                            row.quantity
-                          ),
+                      variantId:
+                        row.variantId
+                          ? Number(
+                              row.variantId
+                            )
+                          : null,
 
-                        priceOverride:
-                          row.priceOverride ===
-                          ""
-                            ? null
-                            : Number(
-                                row.priceOverride
-                              ),
-                      })
-                    ),
-                }
-              ),
+                      quantity:
+                        Number(
+                          row.quantity
+                        ),
+
+                      priceOverride:
+                        row.priceOverride ===
+                        ""
+                          ? null
+                          : Number(
+                              row.priceOverride
+                            ),
+                    })
+                  ),
+              }),
           }
         );
 
@@ -923,7 +1089,9 @@ export default function DocumentForm({
           : "Something went wrong."
       );
     } finally {
-      setLoading(false);
+      setLoading(
+        false
+      );
     }
   }
 
@@ -1003,81 +1171,93 @@ export default function DocumentForm({
 
         {/* Existing Customer Selector */}
 
-<div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-5">
-  <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-start">
-    {/* Customer Dropdown */}
-    <div>
-      <Label>
-        Select Existing Customer
-      </Label>
+        <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-5">
+          <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-start">
+            <div>
+              <Label>
+                Select Existing Customer
+              </Label>
 
-      <select
-        value={selectedCustomerId}
-        onChange={(event) =>
-          handleExistingCustomerChange(
-            event.target.value
-          )
-        }
-        className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 outline-none transition focus:border-slate-900 focus:ring-1 focus:ring-slate-900"
-      >
-        <option value="">
-          Enter New Customer / Firm
-        </option>
+              <select
+                value={
+                  selectedCustomerId
+                }
+                onChange={(
+                  event
+                ) =>
+                  handleExistingCustomerChange(
+                    event.target
+                      .value
+                  )
+                }
+                className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 outline-none transition focus:border-slate-900 focus:ring-1 focus:ring-slate-900"
+              >
+                <option value="">
+                  Enter New Customer / Firm
+                </option>
 
-        {customers.map(
-          (customerOption) => (
-            <option
-              key={customerOption.id}
-              value={customerOption.id}
-            >
-              {customerOption.nameFirmName}
+                {customers.map(
+                  (
+                    customerOption
+                  ) => (
+                    <option
+                      key={
+                        customerOption.id
+                      }
+                      value={
+                        customerOption.id
+                      }
+                    >
+                      {
+                        customerOption.nameFirmName
+                      }
 
-              {customerOption.city
-                ? ` — ${customerOption.city}`
-                : ""}
+                      {customerOption.city
+                        ? ` — ${customerOption.city}`
+                        : ""}
 
-              {customerOption.phone
-                ? ` — ${customerOption.phone}`
-                : ""}
-            </option>
-          )
-        )}
-      </select>
+                      {customerOption.phone
+                        ? ` — ${customerOption.phone}`
+                        : ""}
+                    </option>
+                  )
+                )}
+              </select>
 
-      <p className="mt-2 text-xs text-slate-500">
-        Selecting a customer will auto-fill the fields below.
-        You can still edit the details for this document.
-      </p>
-    </div>
+              <p className="mt-2 text-xs text-slate-500">
+                Selecting a customer will auto-fill the fields below.
+                You can still edit the details for this document.
+              </p>
+            </div>
 
-    {/* New Customer Button */}
-    <div className="lg:pt-[30px]">
-      <button
-        type="button"
-        onClick={clearCustomerForm}
-        className="w-full whitespace-nowrap rounded-lg border border-slate-300 bg-white px-5 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100 lg:w-auto"
-      >
-        New Customer
-      </button>
-    </div>
-  </div>
+            <div className="lg:pt-[30px]">
+              <button
+                type="button"
+                onClick={
+                  clearCustomerForm
+                }
+                className="w-full whitespace-nowrap rounded-lg border border-slate-300 bg-white px-5 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100 lg:w-auto"
+              >
+                New Customer
+              </button>
+            </div>
+          </div>
 
-  {/* Existing Customer Message */}
-  {selectedCustomerId && (
-    <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-      Existing customer selected. Details have been loaded below.
-    </div>
-  )}
+          {selectedCustomerId && (
+            <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+              Existing customer selected. Details have been loaded below.
+            </div>
+          )}
 
-  {/* New Customer Message */}
-  {!selectedCustomerId && !isEditing && (
-    <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">
-      If this is a new customer, they will automatically be
-      added to the Customer directory when the document is
-      saved.
-    </div>
-  )}
-</div>
+          {!selectedCustomerId &&
+            !isEditing && (
+              <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+                If this is a new customer, they will automatically be
+                added to the Customer directory when the document is
+                saved.
+              </div>
+            )}
+        </div>
 
         {/* Customer fields */}
 
@@ -1250,6 +1430,35 @@ export default function DocumentForm({
             }
           />
         </div>
+
+        {/* Automatic GST status */}
+
+        <div
+          className={`mt-6 rounded-lg border px-4 py-3 text-sm ${
+            gstType ===
+            "CGST_SGST"
+              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+              : "border-blue-200 bg-blue-50 text-blue-700"
+          }`}
+        >
+          <div className="font-medium">
+            GST Type:{" "}
+            {gstType ===
+            "CGST_SGST"
+              ? "CGST + SGST"
+              : "IGST"}
+          </div>
+
+          <div className="mt-1 text-xs opacity-80">
+            Company State:{" "}
+            {companyState ||
+              "Not configured"}
+            {" • "}
+            Customer State:{" "}
+            {customer.state ||
+              "Not entered"}
+          </div>
+        </div>
       </section>
 
       {/* =================================================
@@ -1306,8 +1515,6 @@ export default function DocumentForm({
                   className="rounded-lg border border-slate-200 bg-slate-50 p-4"
                 >
                   <div className="grid gap-4 xl:grid-cols-7">
-                    {/* Category */}
-
                     <div>
                       <Label>
                         Category
@@ -1356,8 +1563,6 @@ export default function DocumentForm({
                       </select>
                     </div>
 
-                    {/* Product */}
-
                     <div>
                       <Label>
                         Product
@@ -1403,6 +1608,7 @@ export default function DocumentForm({
                               {
                                 product.name
                               }
+
                               {product.model
                                 ? ` - ${product.model}`
                                 : ""}
@@ -1411,8 +1617,6 @@ export default function DocumentForm({
                         )}
                       </select>
                     </div>
-
-                    {/* Variant */}
 
                     <div>
                       <Label>
@@ -1475,8 +1679,6 @@ export default function DocumentForm({
                       </select>
                     </div>
 
-                    {/* Standard Price */}
-
                     <div>
                       <Label>
                         Standard Price
@@ -1497,8 +1699,6 @@ export default function DocumentForm({
                         className="w-full rounded-lg border border-slate-300 bg-white px-3 py-3"
                       />
                     </div>
-
-                    {/* Override */}
 
                     <div>
                       <Label>
@@ -1529,8 +1729,6 @@ export default function DocumentForm({
                         className="w-full rounded-lg border border-slate-300 bg-white px-3 py-3"
                       />
                     </div>
-
-                    {/* Quantity */}
 
                     <div>
                       <Label>
@@ -1566,8 +1764,6 @@ export default function DocumentForm({
                       />
                     </div>
 
-                    {/* Total */}
-
                     <div>
                       <Label>
                         Line Total
@@ -1584,8 +1780,6 @@ export default function DocumentForm({
                       />
                     </div>
                   </div>
-
-                  {/* Product Info */}
 
                   {selectedProduct && (
                     <div className="mt-4 rounded-lg border border-slate-200 bg-white p-4">
@@ -1614,8 +1808,6 @@ export default function DocumentForm({
                       </div>
                     </div>
                   )}
-
-                  {/* Remove */}
 
                   {rows.length >
                     1 && (
@@ -1721,12 +1913,44 @@ export default function DocumentForm({
                 />
               </div>
 
-              <SummaryRow
-                label="GST Amount"
-                value={formatCurrency(
-                  gstAmount
-                )}
-              />
+              <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
+                <div className="text-xs uppercase tracking-wide text-slate-400">
+                  GST Type
+                </div>
+
+                <div className="mt-1 text-sm font-semibold text-slate-800">
+                  {gstType ===
+                  "CGST_SGST"
+                    ? "CGST + SGST"
+                    : "IGST"}
+                </div>
+              </div>
+
+              {gstType ===
+              "CGST_SGST" ? (
+                <>
+                  <SummaryRow
+                    label={`CGST ${cgstPercent}%`}
+                    value={formatCurrency(
+                      cgstAmount
+                    )}
+                  />
+
+                  <SummaryRow
+                    label={`SGST ${sgstPercent}%`}
+                    value={formatCurrency(
+                      sgstAmount
+                    )}
+                  />
+                </>
+              ) : (
+                <SummaryRow
+                  label={`IGST ${igstPercent}%`}
+                  value={formatCurrency(
+                    igstAmount
+                  )}
+                />
+              )}
 
               <div className="flex justify-between border-t border-slate-200 pt-4 text-lg">
                 <strong>
@@ -1936,12 +2160,12 @@ function SummaryRow({
   value: string;
 }) {
   return (
-    <div className="flex justify-between text-sm">
+    <div className="flex justify-between gap-4 text-sm">
       <span className="text-slate-500">
         {label}
       </span>
 
-      <strong>
+      <strong className="text-right">
         {value}
       </strong>
     </div>

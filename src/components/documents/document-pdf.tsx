@@ -37,7 +37,9 @@ type PdfItem = {
 export type DocumentPdfProps = {
   documentNumber: string;
 
-  documentType: "QUOTATION" | "ORDER_FORM";
+  documentType:
+    | "QUOTATION"
+    | "ORDER_FORM";
 
   documentDate: Date;
 
@@ -61,9 +63,25 @@ export type DocumentPdfProps = {
 
   subtotal: string;
 
+  gstType:
+    | "CGST_SGST"
+    | "IGST";
+
   gstPercent: string;
 
   gstAmount: string;
+
+  cgstPercent: string;
+
+  cgstAmount: string;
+
+  sgstPercent: string;
+
+  sgstAmount: string;
+
+  igstPercent: string;
+
+  igstAmount: string;
 
   grandTotal: string;
 
@@ -102,12 +120,18 @@ type InlineNode = {
 
 type RichBlock =
   | {
-      type: "h1" | "h2" | "h3" | "p";
+      type:
+        | "h1"
+        | "h2"
+        | "h3"
+        | "p";
 
       children: InlineNode[];
     }
   | {
-      type: "bullet" | "number";
+      type:
+        | "bullet"
+        | "number";
 
       children: InlineNode[];
 
@@ -118,575 +142,761 @@ type RichBlock =
    STYLES
 ========================================================= */
 
-const styles = StyleSheet.create({
-  /*
-   * PAGE
-   *
-   * Header/footer are absolute, so page content needs
-   * enough padding to stay clear of them.
-   */
+const styles =
+  StyleSheet.create({
+    /* =====================================================
+       PAGE
+    ===================================================== */
 
-  page: {
-    paddingTop: 96,
+    page: {
+      paddingTop: 96,
 
-    paddingBottom: 82,
+      paddingBottom: 82,
 
-    paddingHorizontal: 36,
+      paddingHorizontal: 36,
 
-    fontFamily: "Helvetica",
+      fontFamily:
+        "Helvetica",
 
-    fontSize: 9,
+      fontSize: 9,
 
-    color: "#0f172a",
+      color:
+        "#0f172a",
 
-    backgroundColor: "#ffffff",
-  },
+      backgroundColor:
+        "#ffffff",
+    },
 
-  /* =====================================================
-     HEADER
-  ===================================================== */
+    /* =====================================================
+       HEADER
+    ===================================================== */
 
-  headerBanner: {
-    position: "absolute",
+    headerBanner: {
+      position:
+        "absolute",
 
-    top: 0,
+      top: 0,
 
-    left: 0,
+      left: 0,
 
-    width: "100%",
+      width:
+        "100%",
 
-    height: 82,
+      height: 82,
 
-    objectFit: "fill",
-  },
+      objectFit:
+        "fill",
+    },
 
-  fallbackHeader: {
-    position: "absolute",
+    fallbackHeader: {
+      position:
+        "absolute",
 
-    top: 20,
+      top: 20,
 
-    left: 36,
+      left: 36,
 
-    right: 36,
+      right: 36,
 
-    flexDirection: "row",
+      flexDirection:
+        "row",
 
-    justifyContent: "space-between",
+      justifyContent:
+        "space-between",
 
-    borderBottomWidth: 1.5,
+      borderBottomWidth:
+        1.5,
 
-    borderBottomColor: "#0f172a",
+      borderBottomColor:
+        "#0f172a",
 
-    paddingBottom: 10,
-  },
+      paddingBottom:
+        10,
+    },
 
-  companyName: {
-    fontSize: 18,
+    companyName: {
+      fontSize: 18,
 
-    fontFamily: "Helvetica-Bold",
-  },
+      fontFamily:
+        "Helvetica-Bold",
+    },
 
-  companySubtitle: {
-    marginTop: 4,
+    companySubtitle: {
+      marginTop: 4,
 
-    fontSize: 8,
+      fontSize: 8,
 
-    color: "#64748b",
-  },
+      color:
+        "#64748b",
+    },
 
-  headerReference: {
-    fontSize: 8,
+    headerReference: {
+      fontSize: 8,
 
-    textAlign: "right",
-  },
+      textAlign:
+        "right",
+    },
 
-  /* =====================================================
-     FOOTER
-  ===================================================== */
+    /* =====================================================
+       FOOTER
+    ===================================================== */
 
-  footerBanner: {
-    position: "absolute",
+    footerBanner: {
+      position:
+        "absolute",
 
-    bottom: 14,
+      bottom: 14,
 
-    left: 0,
+      left: 0,
 
-    width: "100%",
+      width:
+        "100%",
 
-    height: 52,
+      height: 52,
 
-    objectFit: "fill",
-  },
+      objectFit:
+        "fill",
+    },
 
-  footerMeta: {
-    position: "absolute",
+    footerMeta: {
+      position:
+        "absolute",
 
-    bottom: 5,
+      bottom: 5,
 
-    left: 14,
+      left: 14,
 
-    right: 14,
+      right: 14,
 
-    flexDirection: "row",
+      flexDirection:
+        "row",
 
-    justifyContent: "space-between",
+      justifyContent:
+        "space-between",
 
-    fontSize: 6.5,
+      fontSize: 6.5,
 
-    color: "#64748b",
-  },
+      color:
+        "#64748b",
+    },
 
-  /* =====================================================
-     FIRST PAGE
-  ===================================================== */
+    /* =====================================================
+       FIRST PAGE
+    ===================================================== */
 
-  documentMeta: {
-    flexDirection: "row",
+    documentMeta: {
+      flexDirection:
+        "row",
 
-    justifyContent: "space-between",
+      justifyContent:
+        "space-between",
 
-    marginBottom: 8,
+      marginBottom: 8,
 
-    fontSize: 8,
+      fontSize: 8,
 
-    color: "#475569",
-  },
+      color:
+        "#475569",
+    },
 
-  titleWrapper: {
-    alignItems: "center",
+    titleWrapper: {
+      alignItems:
+        "center",
 
-    marginTop: 2,
+      marginTop: 2,
 
-    marginBottom: 14,
-  },
+      marginBottom:
+        14,
+    },
 
-  title: {
-    fontSize: 16,
+    title: {
+      fontSize: 16,
 
-    fontFamily: "Helvetica-Bold",
+      fontFamily:
+        "Helvetica-Bold",
 
-    textDecoration: "underline",
-  },
+      textDecoration:
+        "underline",
+    },
 
-  customerBlock: {
-    marginBottom: 10,
-  },
+    customerBlock: {
+      marginBottom:
+        10,
+    },
 
-  customerName: {
-    marginBottom: 3,
+    customerName: {
+      marginBottom: 3,
 
-    fontSize: 10,
+      fontSize: 10,
 
-    fontFamily: "Helvetica-Bold",
-  },
+      fontFamily:
+        "Helvetica-Bold",
+    },
 
-  normalLine: {
-    marginBottom: 2,
+    normalLine: {
+      marginBottom: 2,
 
-    lineHeight: 1.3,
+      lineHeight:
+        1.3,
 
-    color: "#334155",
-  },
+      color:
+        "#334155",
+    },
 
-  subject: {
-    marginTop: 8,
+    subject: {
+      marginTop: 8,
 
-    marginBottom: 8,
+      marginBottom: 8,
 
-    fontFamily: "Helvetica-Bold",
+      fontFamily:
+        "Helvetica-Bold",
 
-    lineHeight: 1.35,
-  },
+      lineHeight:
+        1.35,
+    },
 
-  intro: {
-    marginBottom: 12,
+    intro: {
+      marginBottom:
+        12,
 
-    lineHeight: 1.45,
+      lineHeight:
+        1.45,
 
-    color: "#334155",
-  },
+      color:
+        "#334155",
+    },
 
-  /* =====================================================
-     PRODUCT TABLE
-  ===================================================== */
+    /* =====================================================
+       PRODUCT TABLE
+    ===================================================== */
 
-  table: {
-    width: "100%",
+    table: {
+      width:
+        "100%",
 
-    borderWidth: 1,
+      borderWidth: 1,
 
-    borderColor: "#cbd5e1",
-  },
+      borderColor:
+        "#cbd5e1",
+    },
 
-  tableHeader: {
-    flexDirection: "row",
+    tableHeader: {
+      flexDirection:
+        "row",
 
-    backgroundColor: "#f1f5f9",
+      backgroundColor:
+        "#f1f5f9",
 
-    borderBottomWidth: 1,
+      borderBottomWidth:
+        1,
 
-    borderBottomColor: "#cbd5e1",
-  },
+      borderBottomColor:
+        "#cbd5e1",
+    },
 
-  tableRow: {
-    flexDirection: "row",
+    tableRow: {
+      flexDirection:
+        "row",
 
-    borderBottomWidth: 1,
+      borderBottomWidth:
+        1,
 
-    borderBottomColor: "#cbd5e1",
-  },
+      borderBottomColor:
+        "#cbd5e1",
+    },
 
-  productColumn: {
-    width: "24%",
+    productColumn: {
+      width:
+        "24%",
 
-    padding: 6,
+      padding: 6,
 
-    borderRightWidth: 1,
+      borderRightWidth:
+        1,
 
-    borderRightColor: "#cbd5e1",
-  },
+      borderRightColor:
+        "#cbd5e1",
+    },
 
-  descriptionColumn: {
-    width: "30%",
+    descriptionColumn: {
+      width:
+        "30%",
 
-    padding: 6,
+      padding: 6,
 
-    borderRightWidth: 1,
+      borderRightWidth:
+        1,
 
-    borderRightColor: "#cbd5e1",
-  },
+      borderRightColor:
+        "#cbd5e1",
+    },
 
-  rateColumn: {
-    width: "17%",
+    rateColumn: {
+      width:
+        "17%",
 
-    padding: 6,
+      padding: 6,
 
-    textAlign: "right",
+      textAlign:
+        "right",
 
-    borderRightWidth: 1,
+      borderRightWidth:
+        1,
 
-    borderRightColor: "#cbd5e1",
-  },
+      borderRightColor:
+        "#cbd5e1",
+    },
 
-  quantityColumn: {
-    width: "10%",
+    quantityColumn: {
+      width:
+        "10%",
 
-    padding: 6,
+      padding: 6,
 
-    textAlign: "center",
+      textAlign:
+        "center",
 
-    borderRightWidth: 1,
+      borderRightWidth:
+        1,
 
-    borderRightColor: "#cbd5e1",
-  },
+      borderRightColor:
+        "#cbd5e1",
+    },
 
-  amountColumn: {
-    width: "19%",
+    amountColumn: {
+      width:
+        "19%",
 
-    padding: 6,
+      padding: 6,
 
-    textAlign: "right",
-  },
+      textAlign:
+        "right",
+    },
 
-  headingCell: {
-    fontSize: 7,
+    headingCell: {
+      fontSize: 7,
 
-    fontFamily: "Helvetica-Bold",
+      fontFamily:
+        "Helvetica-Bold",
 
-    color: "#475569",
-  },
+      color:
+        "#475569",
+    },
 
-  productName: {
-    fontSize: 8,
+    productName: {
+      fontSize: 8,
 
-    fontFamily: "Helvetica-Bold",
-  },
+      fontFamily:
+        "Helvetica-Bold",
+    },
 
-  productMeta: {
-    marginTop: 2.5,
+    productMeta: {
+      marginTop:
+        2.5,
 
-    fontSize: 7,
+      fontSize: 7,
 
-    color: "#64748b",
-  },
+      color:
+        "#64748b",
+    },
 
-  descriptionText: {
-    fontSize: 8,
+    descriptionText: {
+      fontSize: 8,
 
-    lineHeight: 1.3,
+      lineHeight:
+        1.3,
 
-    color: "#334155",
-  },
+      color:
+        "#334155",
+    },
 
-  summaryRow: {
-    flexDirection: "row",
+    summaryRow: {
+      flexDirection:
+        "row",
 
-    borderTopWidth: 1,
+      borderTopWidth:
+        1,
 
-    borderTopColor: "#cbd5e1",
-  },
+      borderTopColor:
+        "#cbd5e1",
+    },
 
-  grandTotalRow: {
-    flexDirection: "row",
+    grandTotalRow: {
+      flexDirection:
+        "row",
 
-    borderTopWidth: 1.5,
+      borderTopWidth:
+        1.5,
 
-    borderTopColor: "#0f172a",
-  },
+      borderTopColor:
+        "#0f172a",
+    },
 
-  summaryLabel: {
-    width: "81%",
+    summaryLabel: {
+      width:
+        "81%",
 
-    padding: 6,
+      padding: 6,
 
-    textAlign: "right",
+      textAlign:
+        "right",
 
-    borderRightWidth: 1,
+      borderRightWidth:
+        1,
 
-    borderRightColor: "#cbd5e1",
+      borderRightColor:
+        "#cbd5e1",
 
-    fontFamily: "Helvetica-Bold",
-  },
+      fontFamily:
+        "Helvetica-Bold",
+    },
 
-  summaryAmount: {
-    width: "19%",
+    summaryAmount: {
+      width:
+        "19%",
 
-    padding: 6,
+      padding: 6,
 
-    textAlign: "right",
+      textAlign:
+        "right",
 
-    fontFamily: "Helvetica-Bold",
-  },
+      fontFamily:
+        "Helvetica-Bold",
+    },
 
-  totalWords: {
-    marginTop: 10,
+    totalWords: {
+      marginTop: 10,
 
-    fontSize: 8,
+      fontSize: 8,
 
-    lineHeight: 1.4,
-  },
+      lineHeight:
+        1.4,
+    },
 
-  note: {
-    marginTop: 8,
+    note: {
+      marginTop: 8,
 
-    fontSize: 8,
+      fontSize: 8,
 
-    lineHeight: 1.4,
-  },
+      lineHeight:
+        1.4,
+    },
 
-  /* =====================================================
-     SIGNATURE
-  ===================================================== */
+    /* =====================================================
+       SIGNATURE
+    ===================================================== */
 
-  signatureWrapper: {
-    marginTop: 16,
+    signatureWrapper: {
+      marginTop: 16,
 
-    alignItems: "flex-start",
-  },
+      alignItems:
+        "flex-start",
+    },
 
-  signatureTitle: {
-    marginBottom: 4,
+    signatureTitle: {
+      marginBottom: 4,
 
-    fontFamily: "Helvetica-Bold",
-  },
+      fontFamily:
+        "Helvetica-Bold",
+    },
 
-  signatureImage: {
-    width: 100,
+    signatureImage: {
+      width: 100,
 
-    height: 42,
+      height: 42,
 
-    objectFit: "contain",
+      objectFit:
+        "contain",
 
-    marginTop: 4,
+      marginTop: 4,
 
-    marginBottom: 3,
-  },
+      marginBottom: 3,
+    },
 
-  signatureLabel: {
-    fontFamily: "Helvetica-Bold",
-  },
+    signatureLabel: {
+      fontFamily:
+        "Helvetica-Bold",
+    },
 
-  /* =====================================================
-     SECONDARY PAGE TITLES
-  ===================================================== */
+    /* =====================================================
+       SECONDARY PAGE TITLES
+    ===================================================== */
 
-  pageTitleWrapper: {
-    alignItems: "center",
+    pageTitleWrapper: {
+      alignItems:
+        "center",
 
-    marginBottom: 18,
-  },
+      marginBottom:
+        18,
+    },
 
-  pageTitle: {
-    fontSize: 15,
+    pageTitle: {
+      fontSize: 15,
 
-    fontFamily: "Helvetica-Bold",
-  },
+      fontFamily:
+        "Helvetica-Bold",
+    },
 
-  titleRule: {
-    marginTop: 6,
+    titleRule: {
+      marginTop: 6,
 
-    width: 70,
+      width: 70,
 
-    borderBottomWidth: 1.5,
+      borderBottomWidth:
+        1.5,
 
-    borderBottomColor: "#0f172a",
-  },
+      borderBottomColor:
+        "#0f172a",
+    },
 
-  /* =====================================================
-     ANNEXURE
-  ===================================================== */
+    /* =====================================================
+       ANNEXURE
+    ===================================================== */
 
-  annexureMachine: {
-    marginBottom: 4,
+    annexureMachine: {
+      marginBottom: 4,
 
-    fontSize: 13,
+      fontSize: 13,
 
-    fontFamily: "Helvetica-Bold",
+      fontFamily:
+        "Helvetica-Bold",
 
-    textAlign: "center",
-  },
+      textAlign:
+        "center",
+    },
 
-  annexureModel: {
-    marginBottom: 3,
+    annexureModel: {
+      marginBottom: 3,
 
-    fontSize: 9,
+      fontSize: 9,
 
-    textAlign: "center",
+      textAlign:
+        "center",
 
-    color: "#475569",
-  },
+      color:
+        "#475569",
+    },
 
-  annexureVariant: {
-    marginBottom: 14,
+    annexureVariant: {
+      marginBottom: 14,
 
-    fontSize: 8,
+      fontSize: 8,
 
-    textAlign: "center",
+      textAlign:
+        "center",
 
-    color: "#64748b",
-  },
+      color:
+        "#64748b",
+    },
 
-  sectionHeading: {
-    marginTop: 9,
+    sectionHeading: {
+      marginTop: 9,
 
-    marginBottom: 5,
+      marginBottom: 5,
 
-    fontSize: 10,
+      fontSize: 10,
 
-    fontFamily: "Helvetica-Bold",
-  },
+      fontFamily:
+        "Helvetica-Bold",
+    },
 
-  /* =====================================================
-     RICH TEXT
-  ===================================================== */
+    /* =====================================================
+       RICH TEXT
+    ===================================================== */
 
-  richParagraph: {
-    marginBottom: 6,
+    richParagraph: {
+      marginBottom: 6,
 
-    fontSize: 9,
+      fontSize: 9,
 
-    lineHeight: 1.4,
+      lineHeight:
+        1.4,
 
-    color: "#334155",
-  },
+      color:
+        "#334155",
+    },
 
-  richHeading1: {
-    marginTop: 10,
+    richHeading1: {
+      marginTop: 10,
 
-    marginBottom: 6,
+      marginBottom: 6,
 
-    fontSize: 13,
+      fontSize: 13,
 
-    lineHeight: 1.3,
+      lineHeight:
+        1.3,
 
-    fontFamily: "Helvetica-Bold",
-  },
+      fontFamily:
+        "Helvetica-Bold",
+    },
 
-  richHeading2: {
-    marginTop: 9,
+    richHeading2: {
+      marginTop: 9,
 
-    marginBottom: 5,
+      marginBottom: 5,
 
-    fontSize: 11,
+      fontSize: 11,
 
-    lineHeight: 1.3,
+      lineHeight:
+        1.3,
 
-    fontFamily: "Helvetica-Bold",
-  },
+      fontFamily:
+        "Helvetica-Bold",
+    },
 
-  richHeading3: {
-    marginTop: 8,
+    richHeading3: {
+      marginTop: 8,
 
-    marginBottom: 4,
+      marginBottom: 4,
 
-    fontSize: 10,
+      fontSize: 10,
 
-    lineHeight: 1.3,
+      lineHeight:
+        1.3,
 
-    fontFamily: "Helvetica-Bold",
-  },
+      fontFamily:
+        "Helvetica-Bold",
+    },
 
-  listRow: {
-    flexDirection: "row",
+    listRow: {
+      flexDirection:
+        "row",
 
-    marginBottom: 4,
+      marginBottom: 4,
 
-    paddingLeft: 6,
-  },
+      paddingLeft: 6,
+    },
 
-  listBullet: {
-    width: 18,
+    listBullet: {
+      width: 18,
 
-    fontSize: 9,
+      fontSize: 9,
 
-    lineHeight: 1.4,
-  },
+      lineHeight:
+        1.4,
+    },
 
-  listText: {
-    flex: 1,
+    listText: {
+      flex: 1,
 
-    fontSize: 9,
+      fontSize: 9,
 
-    lineHeight: 1.4,
+      lineHeight:
+        1.4,
 
-    color: "#334155",
-  },
-});
+      color:
+        "#334155",
+    },
+  });
 
 /* =========================================================
    FORMAT HELPERS
 ========================================================= */
 
-function formatMoney(value: string) {
-  return `Rs. ${new Intl.NumberFormat("en-IN", {
-    minimumFractionDigits: 2,
+function formatMoney(
+  value:
+    | string
+    | number
+    | null
+    | undefined
+) {
+  const number =
+    Number(
+      value ?? 0
+    );
 
-    maximumFractionDigits: 2,
-  }).format(Number(value))}`;
+  const safeNumber =
+    Number.isFinite(
+      number
+    )
+      ? number
+      : 0;
+
+  return `Rs. ${new Intl.NumberFormat(
+    "en-IN",
+    {
+      minimumFractionDigits:
+        2,
+
+      maximumFractionDigits:
+        2,
+    }
+  ).format(
+    safeNumber
+  )}`;
 }
 
-function formatDate(date: Date) {
-  return new Intl.DateTimeFormat("en-IN", {
-    day: "2-digit",
+function formatPercent(
+  value:
+    | string
+    | number
+    | null
+    | undefined
+) {
+  const number =
+    Number(
+      value ?? 0
+    );
 
-    month: "short",
+  if (
+    !Number.isFinite(
+      number
+    )
+  ) {
+    return "0";
+  }
 
-    year: "numeric",
-  }).format(date);
+  return new Intl.NumberFormat(
+    "en-IN",
+    {
+      maximumFractionDigits:
+        2,
+    }
+  ).format(
+    number
+  );
+}
+
+function formatDate(
+  date: Date
+) {
+  return new Intl.DateTimeFormat(
+    "en-IN",
+    {
+      day:
+        "2-digit",
+
+      month:
+        "short",
+
+      year:
+        "numeric",
+    }
+  ).format(
+    date
+  );
 }
 
 function getSubject(
-  documentType: "QUOTATION" | "ORDER_FORM"
+  documentType:
+    | "QUOTATION"
+    | "ORDER_FORM"
 ) {
-  return documentType === "QUOTATION"
+  return documentType ===
+    "QUOTATION"
     ? "Sub:- QUOTATION FOR AUTOMATIC STONE PROCESSING MACHINES"
     : "Sub:- ORDER FORM FOR AUTOMATIC STONE PROCESSING MACHINES";
 }
 
 function getIntroText(
-  documentType: "QUOTATION" | "ORDER_FORM"
+  documentType:
+    | "QUOTATION"
+    | "ORDER_FORM"
 ) {
-  if (documentType === "QUOTATION") {
+  if (
+    documentType ===
+    "QUOTATION"
+  ) {
     return "Dear Sir/Ma'am, We are submitting herewith our quotation for stone processing machine as desired by you. The quotations are as under: -";
   }
 
@@ -697,143 +907,198 @@ function getIntroText(
    HTML ENTITY DECODER
 ========================================================= */
 
-function decodeHtml(value: string) {
+function decodeHtml(
+  value: string
+) {
   return value
-    .replace(/&nbsp;/gi, " ")
+    .replace(
+      /&nbsp;/gi,
+      " "
+    )
 
-    .replace(/&amp;/gi, "&")
+    .replace(
+      /&amp;/gi,
+      "&"
+    )
 
-    .replace(/&lt;/gi, "<")
+    .replace(
+      /&lt;/gi,
+      "<"
+    )
 
-    .replace(/&gt;/gi, ">")
+    .replace(
+      /&gt;/gi,
+      ">"
+    )
 
-    .replace(/&quot;/gi, '"')
+    .replace(
+      /&quot;/gi,
+      '"'
+    )
 
-    .replace(/&#39;/gi, "'")
+    .replace(
+      /&#39;/gi,
+      "'"
+    )
 
-    .replace(/&apos;/gi, "'")
+    .replace(
+      /&apos;/gi,
+      "'"
+    )
 
-    .replace(/&rsquo;/gi, "'")
+    .replace(
+      /&rsquo;/gi,
+      "'"
+    )
 
-    .replace(/&lsquo;/gi, "'")
+    .replace(
+      /&lsquo;/gi,
+      "'"
+    )
 
-    .replace(/&rdquo;/gi, '"')
+    .replace(
+      /&rdquo;/gi,
+      '"'
+    )
 
-    .replace(/&ldquo;/gi, '"')
+    .replace(
+      /&ldquo;/gi,
+      '"'
+    )
 
-    .replace(/&ndash;/gi, "–")
+    .replace(
+      /&ndash;/gi,
+      "–"
+    )
 
-    .replace(/&mdash;/gi, "—")
+    .replace(
+      /&mdash;/gi,
+      "—"
+    )
 
-    .replace(/&bull;/gi, "•");
+    .replace(
+      /&bull;/gi,
+      "•"
+    );
 }
 
 /* =========================================================
    INLINE HTML PARSER
-
-   Converts:
-
-   Hello <strong>World</strong>
-
-   into:
-
-   [
-     { text: "Hello " },
-     { text: "World", bold: true }
-   ]
 ========================================================= */
 
-function parseInlineHtml(html: string): InlineNode[] {
-  const nodes: InlineNode[] = [];
+function parseInlineHtml(
+  html: string
+): InlineNode[] {
+  const nodes:
+    InlineNode[] =
+    [];
 
-  let bold = false;
+  let bold =
+    false;
 
-  let italic = false;
+  let italic =
+    false;
 
-  let underline = false;
+  let underline =
+    false;
 
-  /*
-   * Split on inline formatting tags.
-   */
+  const parts =
+    html.split(
+      /(<\/?(?:strong|b|em|i|u)[^>]*>|<br\s*\/?>)/gi
+    );
 
-  const parts = html.split(
-    /(<\/?(?:strong|b|em|i|u)[^>]*>|<br\s*\/?>)/gi
-  );
-
-  for (const part of parts) {
+  for (
+    const part of
+    parts
+  ) {
     if (!part) {
       continue;
     }
 
-    const lower = part.toLowerCase();
-
-    /*
-     * Bold
-     */
+    const lower =
+      part.toLowerCase();
 
     if (
-      lower.startsWith("<strong") ||
-      lower.startsWith("<b")
+      lower.startsWith(
+        "<strong"
+      ) ||
+      lower.startsWith(
+        "<b"
+      )
     ) {
-      bold = true;
-
-      continue;
-    }
-
-    if (
-      lower === "</strong>" ||
-      lower === "</b>"
-    ) {
-      bold = false;
-
-      continue;
-    }
-
-    /*
-     * Italic
-     */
-
-    if (
-      lower.startsWith("<em") ||
-      lower.startsWith("<i")
-    ) {
-      italic = true;
+      bold =
+        true;
 
       continue;
     }
 
     if (
-      lower === "</em>" ||
-      lower === "</i>"
+      lower ===
+        "</strong>" ||
+      lower ===
+        "</b>"
     ) {
-      italic = false;
+      bold =
+        false;
 
       continue;
     }
 
-    /*
-     * Underline
-     */
-
-    if (lower.startsWith("<u")) {
-      underline = true;
-
-      continue;
-    }
-
-    if (lower === "</u>") {
-      underline = false;
+    if (
+      lower.startsWith(
+        "<em"
+      ) ||
+      lower.startsWith(
+        "<i"
+      )
+    ) {
+      italic =
+        true;
 
       continue;
     }
 
-    /*
-     * BR
-     */
+    if (
+      lower ===
+        "</em>" ||
+      lower ===
+        "</i>"
+    ) {
+      italic =
+        false;
 
-    if (/^<br\s*\/?>$/i.test(part)) {
+      continue;
+    }
+
+    if (
+      lower.startsWith(
+        "<u"
+      )
+    ) {
+      underline =
+        true;
+
+      continue;
+    }
+
+    if (
+      lower ===
+      "</u>"
+    ) {
+      underline =
+        false;
+
+      continue;
+    }
+
+    if (
+      /^<br\s*\/?>$/i.test(
+        part
+      )
+    ) {
       nodes.push({
-        text: "\n",
+        text:
+          "\n",
 
         bold,
 
@@ -845,13 +1110,13 @@ function parseInlineHtml(html: string): InlineNode[] {
       continue;
     }
 
-    /*
-     * Remove any remaining inline HTML.
-     */
-
-    const text = decodeHtml(
-      part.replace(/<[^>]+>/g, "")
-    );
+    const text =
+      decodeHtml(
+        part.replace(
+          /<[^>]+>/g,
+          ""
+        )
+      );
 
     if (!text) {
       continue;
@@ -875,68 +1140,80 @@ function parseInlineHtml(html: string): InlineNode[] {
    CHECK INLINE CONTENT
 ========================================================= */
 
-function hasInlineText(nodes: InlineNode[]) {
+function hasInlineText(
+  nodes:
+    InlineNode[]
+) {
   return nodes.some(
-    (node) => node.text.trim().length > 0
+    (
+      node
+    ) =>
+      node.text
+        .trim()
+        .length >
+      0
   );
 }
 
 /* =========================================================
    HTML -> BLOCKS
-
-   Important:
-   This parser processes HTML in SOURCE ORDER.
-
-   It therefore avoids the old problem where all lists
-   appeared before all paragraphs.
 ========================================================= */
 
 function htmlToBlocks(
-  html?: string | null
+  html?:
+    | string
+    | null
 ): RichBlock[] {
   if (!html) {
     return [];
   }
 
-  const blocks: RichBlock[] = [];
+  const blocks:
+    RichBlock[] =
+    [];
 
-  /*
-   * Normalize HTML slightly.
-   */
-
-  const normalized = html
-    .replace(/\r\n/g, "\n")
-
-    .replace(/\r/g, "\n");
-
-  /*
-   * Find top-level block tags in their original order.
-   */
+  const normalized =
+    html
+      .replace(
+        /\r\n/g,
+        "\n"
+      )
+      .replace(
+        /\r/g,
+        "\n"
+      );
 
   const blockRegex =
     /<(h1|h2|h3|p|ul|ol)[^>]*>([\s\S]*?)<\/\1>/gi;
 
   const matches = [
-    ...normalized.matchAll(blockRegex),
+    ...normalized.matchAll(
+      blockRegex
+    ),
   ];
 
-  /*
-   * If TipTap returned plain text instead of HTML.
-   */
-
-  if (matches.length === 0) {
-    const plain = decodeHtml(
-      normalized.replace(/<[^>]*>/g, "")
-    ).trim();
+  if (
+    matches.length ===
+    0
+  ) {
+    const plain =
+      decodeHtml(
+        normalized.replace(
+          /<[^>]*>/g,
+          ""
+        )
+      ).trim();
 
     if (plain) {
       return [
         {
-          type: "p",
+          type:
+            "p",
 
           children: [
             {
-              text: plain,
+              text:
+                plain,
             },
           ],
         },
@@ -946,14 +1223,15 @@ function htmlToBlocks(
     return [];
   }
 
-  for (const match of matches) {
-    const tag = match[1].toLowerCase();
+  for (
+    const match of
+    matches
+  ) {
+    const tag =
+      match[1].toLowerCase();
 
-    const content = match[2];
-
-    /*
-     * HEADINGS / PARAGRAPHS
-     */
+    const content =
+      match[2];
 
     if (
       tag === "h1" ||
@@ -962,52 +1240,74 @@ function htmlToBlocks(
       tag === "p"
     ) {
       const children =
-        parseInlineHtml(content);
+        parseInlineHtml(
+          content
+        );
 
-      if (!hasInlineText(children)) {
+      if (
+        !hasInlineText(
+          children
+        )
+      ) {
         continue;
       }
 
       blocks.push({
-        type: tag,
+        type:
+          tag,
 
         children,
-      });
+      } as RichBlock);
 
       continue;
     }
 
-    /*
-     * LISTS
-     */
-
-    if (tag === "ul" || tag === "ol") {
+    if (
+      tag === "ul" ||
+      tag === "ol"
+    ) {
       const itemRegex =
         /<li[^>]*>([\s\S]*?)<\/li>/gi;
 
       const items = [
-        ...content.matchAll(itemRegex),
+        ...content.matchAll(
+          itemRegex
+        ),
       ];
 
-      items.forEach((item, index) => {
-        const children =
-          parseInlineHtml(item[1]);
+      items.forEach(
+        (
+          item,
+          index
+        ) => {
+          const children =
+            parseInlineHtml(
+              item[1]
+            );
 
-        if (!hasInlineText(children)) {
-          return;
+          if (
+            !hasInlineText(
+              children
+            )
+          ) {
+            return;
+          }
+
+          blocks.push({
+            type:
+              tag ===
+              "ol"
+                ? "number"
+                : "bullet",
+
+            children,
+
+            index:
+              index +
+              1,
+          });
         }
-
-        blocks.push({
-          type:
-            tag === "ol"
-              ? "number"
-              : "bullet",
-
-          children,
-
-          index: index + 1,
-        });
-      });
+      );
     }
   }
 
@@ -1021,43 +1321,52 @@ function htmlToBlocks(
 function InlinePdfText({
   nodes,
 }: {
-  nodes: InlineNode[];
+  nodes:
+    InlineNode[];
 }) {
   return (
     <>
-      {nodes.map((node, index) => {
-        /*
-         * Helvetica doesn't have a built-in
-         * bold + italic name exposed consistently
-         * across all React-PDF environments.
+      {nodes.map(
+        (
+          node,
+          index
+        ) => {
+          let fontFamily =
+            "Helvetica";
 
-         * Bold takes priority here.
-         */
+          if (
+            node.bold
+          ) {
+            fontFamily =
+              "Helvetica-Bold";
+          } else if (
+            node.italic
+          ) {
+            fontFamily =
+              "Helvetica-Oblique";
+          }
 
-        let fontFamily = "Helvetica";
+          return (
+            <Text
+              key={
+                index
+              }
+              style={{
+                fontFamily,
 
-        if (node.bold) {
-          fontFamily = "Helvetica-Bold";
-        } else if (node.italic) {
-          fontFamily = "Helvetica-Oblique";
+                textDecoration:
+                  node.underline
+                    ? "underline"
+                    : undefined,
+              }}
+            >
+              {
+                node.text
+              }
+            </Text>
+          );
         }
-
-        return (
-          <Text
-            key={index}
-            style={{
-              fontFamily,
-
-              textDecoration:
-                node.underline
-                  ? "underline"
-                  : undefined,
-            }}
-          >
-            {node.text}
-          </Text>
-        );
-      })}
+      )}
     </>
   );
 }
@@ -1069,140 +1378,194 @@ function InlinePdfText({
 function RichPdfContent({
   html,
 }: {
-  html?: string | null;
+  html?:
+    | string
+    | null;
 }) {
   const blocks =
-    htmlToBlocks(html);
+    htmlToBlocks(
+      html
+    );
 
-  if (blocks.length === 0) {
+  if (
+    blocks.length ===
+    0
+  ) {
     return null;
   }
 
   return (
     <View>
-      {blocks.map((block, index) => {
-        /*
-         * H1
-         */
-
-        if (block.type === "h1") {
-          return (
-            <Text
-              key={index}
-              style={styles.richHeading1}
-            >
-              <InlinePdfText
-                nodes={block.children}
-              />
-            </Text>
-          );
-        }
-
-        /*
-         * H2
-         */
-
-        if (block.type === "h2") {
-          return (
-            <Text
-              key={index}
-              style={styles.richHeading2}
-            >
-              <InlinePdfText
-                nodes={block.children}
-              />
-            </Text>
-          );
-        }
-
-        /*
-         * H3
-         */
-
-        if (block.type === "h3") {
-          return (
-            <Text
-              key={index}
-              style={styles.richHeading3}
-            >
-              <InlinePdfText
-                nodes={block.children}
-              />
-            </Text>
-          );
-        }
-
-        /*
-         * BULLET
-         */
-
-        if (block.type === "bullet") {
-          return (
-            <View
-              key={index}
-              style={styles.listRow}
-              wrap={false}
-            >
+      {blocks.map(
+        (
+          block,
+          index
+        ) => {
+          if (
+            block.type ===
+            "h1"
+          ) {
+            return (
               <Text
-                style={styles.listBullet}
-              >
-                •
-              </Text>
-
-              <Text
-                style={styles.listText}
+                key={
+                  index
+                }
+                style={
+                  styles.richHeading1
+                }
               >
                 <InlinePdfText
-                  nodes={block.children}
+                  nodes={
+                    block.children
+                  }
                 />
               </Text>
-            </View>
-          );
-        }
+            );
+          }
 
-        /*
-         * NUMBERED LIST
-         */
-
-        if (block.type === "number") {
-          return (
-            <View
-              key={index}
-              style={styles.listRow}
-              wrap={false}
-            >
+          if (
+            block.type ===
+            "h2"
+          ) {
+            return (
               <Text
-                style={styles.listBullet}
-              >
-                {block.index}.
-              </Text>
-
-              <Text
-                style={styles.listText}
+                key={
+                  index
+                }
+                style={
+                  styles.richHeading2
+                }
               >
                 <InlinePdfText
-                  nodes={block.children}
+                  nodes={
+                    block.children
+                  }
                 />
               </Text>
-            </View>
+            );
+          }
+
+          if (
+            block.type ===
+            "h3"
+          ) {
+            return (
+              <Text
+                key={
+                  index
+                }
+                style={
+                  styles.richHeading3
+                }
+              >
+                <InlinePdfText
+                  nodes={
+                    block.children
+                  }
+                />
+              </Text>
+            );
+          }
+
+          if (
+            block.type ===
+            "bullet"
+          ) {
+            return (
+              <View
+                key={
+                  index
+                }
+                style={
+                  styles.listRow
+                }
+                wrap={
+                  false
+                }
+              >
+                <Text
+                  style={
+                    styles.listBullet
+                  }
+                >
+                  •
+                </Text>
+
+                <Text
+                  style={
+                    styles.listText
+                  }
+                >
+                  <InlinePdfText
+                    nodes={
+                      block.children
+                    }
+                  />
+                </Text>
+              </View>
+            );
+          }
+
+          if (
+            block.type ===
+            "number"
+          ) {
+            return (
+              <View
+                key={
+                  index
+                }
+                style={
+                  styles.listRow
+                }
+                wrap={
+                  false
+                }
+              >
+                <Text
+                  style={
+                    styles.listBullet
+                  }
+                >
+                  {
+                    block.index
+                  }
+                  .
+                </Text>
+
+                <Text
+                  style={
+                    styles.listText
+                  }
+                >
+                  <InlinePdfText
+                    nodes={
+                      block.children
+                    }
+                  />
+                </Text>
+              </View>
+            );
+          }
+
+          return (
+            <Text
+              key={
+                index
+              }
+              style={
+                styles.richParagraph
+              }
+            >
+              <InlinePdfText
+                nodes={
+                  block.children
+                }
+              />
+            </Text>
           );
         }
-
-        /*
-         * PARAGRAPH
-         */
-
-        return (
-          <Text
-            key={index}
-            style={styles.richParagraph}
-          >
-            <InlinePdfText
-              nodes={block.children}
-            />
-          </Text>
-        );
-      })}
+      )}
     </View>
   );
 }
@@ -1218,42 +1581,52 @@ function PdfHeader({
 
   documentDate,
 }: {
-  headerBanner?: string | null;
+  headerBanner?:
+    | string
+    | null;
 
-  documentNumber: string;
+  documentNumber:
+    string;
 
-  documentDate: Date;
+  documentDate:
+    Date;
 }) {
-  /*
-   * Uploaded header artwork.
-   */
-
-  if (headerBanner) {
+  if (
+    headerBanner
+  ) {
     return (
       <Image
         fixed
-        src={headerBanner}
-        style={styles.headerBanner}
+        src={
+          headerBanner
+        }
+        style={
+          styles.headerBanner
+        }
       />
     );
   }
 
-  /*
-   * Fallback if Settings has no header image.
-   */
-
   return (
     <View
       fixed
-      style={styles.fallbackHeader}
+      style={
+        styles.fallbackHeader
+      }
     >
       <View>
-        <Text style={styles.companyName}>
+        <Text
+          style={
+            styles.companyName
+          }
+        >
           SDP MACHINES
         </Text>
 
         <Text
-          style={styles.companySubtitle}
+          style={
+            styles.companySubtitle
+          }
         >
           Quotation & Order Management
         </Text>
@@ -1261,9 +1634,13 @@ function PdfHeader({
 
       <View>
         <Text
-          style={styles.headerReference}
+          style={
+            styles.headerReference
+          }
         >
-          {documentNumber}
+          {
+            documentNumber
+          }
         </Text>
 
         <Text
@@ -1271,11 +1648,14 @@ function PdfHeader({
             styles.headerReference,
 
             {
-              marginTop: 3,
+              marginTop:
+                3,
             },
           ]}
         >
-          {formatDate(documentDate)}
+          {formatDate(
+            documentDate
+          )}
         </Text>
       </View>
     </View>
@@ -1291,25 +1671,38 @@ function PdfFooter({
 
   documentNumber,
 }: {
-  footerBanner?: string | null;
+  footerBanner?:
+    | string
+    | null;
 
-  documentNumber: string;
+  documentNumber:
+    string;
 }) {
   return (
     <>
       {footerBanner && (
         <Image
           fixed
-          src={footerBanner}
-          style={styles.footerBanner}
+          src={
+            footerBanner
+          }
+          style={
+            styles.footerBanner
+          }
         />
       )}
 
       <View
         fixed
-        style={styles.footerMeta}
+        style={
+          styles.footerMeta
+        }
       >
-        <Text>{documentNumber}</Text>
+        <Text>
+          {
+            documentNumber
+          }
+        </Text>
 
         <Text
           render={({
@@ -1334,14 +1727,18 @@ function PdfPage({
 
   props,
 }: {
-  children: React.ReactNode;
+  children:
+    React.ReactNode;
 
-  props: DocumentPdfProps;
+  props:
+    DocumentPdfProps;
 }) {
   return (
     <Page
       size="A4"
-      style={styles.page}
+      style={
+        styles.page
+      }
       wrap
     >
       <PdfHeader
@@ -1375,7 +1772,8 @@ function PdfPage({
 ========================================================= */
 
 export default function DocumentPdf(
-  props: DocumentPdfProps
+  props:
+    DocumentPdfProps
 ): React.ReactElement<DocumentProps> {
   return (
     <Document>
@@ -1383,14 +1781,23 @@ export default function DocumentPdf(
           PAGE 1
       ================================================= */}
 
-      <PdfPage props={props}>
+      <PdfPage
+        props={
+          props
+        }
+      >
         {/* Reference + Date */}
 
         <View
-          style={styles.documentMeta}
+          style={
+            styles.documentMeta
+          }
         >
           <Text>
-            Ref: {props.documentNumber}
+            Ref:{" "}
+            {
+              props.documentNumber
+            }
           </Text>
 
           <Text>
@@ -1404,9 +1811,15 @@ export default function DocumentPdf(
         {/* Document Title */}
 
         <View
-          style={styles.titleWrapper}
+          style={
+            styles.titleWrapper
+          }
         >
-          <Text style={styles.title}>
+          <Text
+            style={
+              styles.title
+            }
+          >
             {props.documentType ===
             "QUOTATION"
               ? "QUOTATION"
@@ -1419,97 +1832,137 @@ export default function DocumentPdf(
         ================================================= */}
 
         <View
-          style={styles.customerBlock}
+          style={
+            styles.customerBlock
+          }
         >
           <Text
-            style={styles.customerName}
+            style={
+              styles.customerName
+            }
           >
             M/s.{" "}
-            {props.customerNameFirm}
+            {
+              props.customerNameFirm
+            }
           </Text>
 
           {props.addressLine1 && (
             <Text
-              style={styles.normalLine}
+              style={
+                styles.normalLine
+              }
             >
-              {props.addressLine1}
+              {
+                props.addressLine1
+              }
             </Text>
           )}
 
           {props.addressLine2 && (
             <Text
-              style={styles.normalLine}
+              style={
+                styles.normalLine
+              }
             >
-              {props.addressLine2}
+              {
+                props.addressLine2
+              }
             </Text>
           )}
 
           {props.addressLine3 && (
             <Text
-              style={styles.normalLine}
+              style={
+                styles.normalLine
+              }
             >
-              {props.addressLine3}
+              {
+                props.addressLine3
+              }
             </Text>
           )}
 
           {(props.customerCity ||
             props.customerState) && (
             <Text
-              style={styles.normalLine}
+              style={
+                styles.normalLine
+              }
             >
               {[
                 props.customerCity,
 
                 props.customerState,
               ]
-                .filter(Boolean)
-                .join(", ")}
+                .filter(
+                  Boolean
+                )
+                .join(
+                  ", "
+                )}
             </Text>
           )}
 
           {props.customerGST && (
             <Text
-              style={styles.normalLine}
+              style={
+                styles.normalLine
+              }
             >
               GST No:{" "}
-              {props.customerGST}
+              {
+                props.customerGST
+              }
             </Text>
           )}
 
           {props.customerPhone && (
             <Text
-              style={styles.normalLine}
+              style={
+                styles.normalLine
+              }
             >
               Phone:{" "}
-              {props.customerPhone}
+              {
+                props.customerPhone
+              }
             </Text>
           )}
 
           {props.customerWhatsapp && (
             <Text
-              style={styles.normalLine}
+              style={
+                styles.normalLine
+              }
             >
               WhatsApp:{" "}
-              {props.customerWhatsapp}
+              {
+                props.customerWhatsapp
+              }
             </Text>
           )}
         </View>
 
-        {/* =================================================
-            SUBJECT
-        ================================================= */}
+        {/* SUBJECT */}
 
-        <Text style={styles.subject}>
+        <Text
+          style={
+            styles.subject
+          }
+        >
           {getSubject(
             props.documentType
           )}
         </Text>
 
-        {/* =================================================
-            INTRODUCTION
-        ================================================= */}
+        {/* INTRODUCTION */}
 
-        <Text style={styles.intro}>
+        <Text
+          style={
+            styles.intro
+          }
+        >
           {getIntroText(
             props.documentType
           )}
@@ -1519,12 +1972,20 @@ export default function DocumentPdf(
             PRODUCT TABLE
         ================================================= */}
 
-        <View style={styles.table}>
+        <View
+          style={
+            styles.table
+          }
+        >
           {/* Header */}
 
           <View
-            style={styles.tableHeader}
-            wrap={false}
+            style={
+              styles.tableHeader
+            }
+            wrap={
+              false
+            }
           >
             <Text
               style={[
@@ -1580,14 +2041,19 @@ export default function DocumentPdf(
           {/* Products */}
 
           {props.items.map(
-            (item, index) => (
+            (
+              item,
+              index
+            ) => (
               <View
                 key={`product-${index}`}
-                style={styles.tableRow}
-                wrap={false}
+                style={
+                  styles.tableRow
+                }
+                wrap={
+                  false
+                }
               >
-                {/* Product */}
-
                 <View
                   style={
                     styles.productColumn
@@ -1598,7 +2064,9 @@ export default function DocumentPdf(
                       styles.productName
                     }
                   >
-                    {item.productName}
+                    {
+                      item.productName
+                    }
                   </Text>
 
                   {item.productModel && (
@@ -1628,8 +2096,6 @@ export default function DocumentPdf(
                   )}
                 </View>
 
-                {/* Description */}
-
                 <View
                   style={
                     styles.descriptionColumn
@@ -1645,8 +2111,6 @@ export default function DocumentPdf(
                   </Text>
                 </View>
 
-                {/* Rate */}
-
                 <Text
                   style={
                     styles.rateColumn
@@ -1657,17 +2121,15 @@ export default function DocumentPdf(
                   )}
                 </Text>
 
-                {/* Quantity */}
-
                 <Text
                   style={
                     styles.quantityColumn
                   }
                 >
-                  {item.quantity}
+                  {
+                    item.quantity
+                  }
                 </Text>
-
-                {/* Amount */}
 
                 <Text
                   style={
@@ -1687,8 +2149,12 @@ export default function DocumentPdf(
           ================================================= */}
 
           <View
-            style={styles.summaryRow}
-            wrap={false}
+            style={
+              styles.summaryRow
+            }
+            wrap={
+              false
+            }
           >
             <Text
               style={
@@ -1710,31 +2176,106 @@ export default function DocumentPdf(
           </View>
 
           {/* =================================================
-              GST
+              GST BREAKUP
           ================================================= */}
 
-          <View
-            style={styles.summaryRow}
-            wrap={false}
-          >
-            <Text
-              style={
-                styles.summaryLabel
-              }
-            >
-              GST {props.gstPercent}%
-            </Text>
+          {props.gstType ===
+          "CGST_SGST" ? (
+            <>
+              <View
+                style={
+                  styles.summaryRow
+                }
+                wrap={
+                  false
+                }
+              >
+                <Text
+                  style={
+                    styles.summaryLabel
+                  }
+                >
+                  CGST{" "}
+                  {formatPercent(
+                    props.cgstPercent
+                  )}
+                  %
+                </Text>
 
-            <Text
+                <Text
+                  style={
+                    styles.summaryAmount
+                  }
+                >
+                  {formatMoney(
+                    props.cgstAmount
+                  )}
+                </Text>
+              </View>
+
+              <View
+                style={
+                  styles.summaryRow
+                }
+                wrap={
+                  false
+                }
+              >
+                <Text
+                  style={
+                    styles.summaryLabel
+                  }
+                >
+                  SGST{" "}
+                  {formatPercent(
+                    props.sgstPercent
+                  )}
+                  %
+                </Text>
+
+                <Text
+                  style={
+                    styles.summaryAmount
+                  }
+                >
+                  {formatMoney(
+                    props.sgstAmount
+                  )}
+                </Text>
+              </View>
+            </>
+          ) : (
+            <View
               style={
-                styles.summaryAmount
+                styles.summaryRow
+              }
+              wrap={
+                false
               }
             >
-              {formatMoney(
-                props.gstAmount
-              )}
-            </Text>
-          </View>
+              <Text
+                style={
+                  styles.summaryLabel
+                }
+              >
+                IGST{" "}
+                {formatPercent(
+                  props.igstPercent
+                )}
+                %
+              </Text>
+
+              <Text
+                style={
+                  styles.summaryAmount
+                }
+              >
+                {formatMoney(
+                  props.igstAmount
+                )}
+              </Text>
+            </View>
+          )}
 
           {/* =================================================
               GRAND TOTAL
@@ -1744,7 +2285,9 @@ export default function DocumentPdf(
             style={
               styles.grandTotalRow
             }
-            wrap={false}
+            wrap={
+              false
+            }
           >
             <Text
               style={
@@ -1772,49 +2315,58 @@ export default function DocumentPdf(
 
         {props.totalInWords && (
           <Text
-            style={styles.totalWords}
+            style={
+              styles.totalWords
+            }
           >
             Total in Words:{" "}
-            {props.totalInWords}
+            {
+              props.totalInWords
+            }
           </Text>
         )}
 
-        {/* =================================================
-            NOTES
-        ================================================= */}
+        {/* NOTES */}
 
         {props.additionalNotes && (
-          <Text style={styles.note}>
+          <Text
+            style={
+              styles.note
+            }
+          >
             Note:{" "}
-            {props.additionalNotes}
+            {
+              props.additionalNotes
+            }
           </Text>
         )}
 
-        {/* =================================================
-            QUOTATION FOOTER CONTENT
-        ================================================= */}
+        {/* QUOTATION FOOTER */}
 
         {props.quoteFooter && (
           <View
             style={{
-              marginTop: 12,
+              marginTop:
+                12,
             }}
           >
             <RichPdfContent
-              html={props.quoteFooter}
+              html={
+                props.quoteFooter
+              }
             />
           </View>
         )}
 
-        {/* =================================================
-            SIGNATURE
-        ================================================= */}
+        {/* SIGNATURE */}
 
         <View
           style={
             styles.signatureWrapper
           }
-          wrap={false}
+          wrap={
+            false
+          }
         >
           {!props.quoteFooter && (
             <Text
@@ -1852,21 +2404,31 @@ export default function DocumentPdf(
       ================================================= */}
 
       {props.termsContent && (
-        <PdfPage props={props}>
+        <PdfPage
+          props={
+            props
+          }
+        >
           <View
             style={
               styles.pageTitleWrapper
             }
-            wrap={false}
+            wrap={
+              false
+            }
           >
             <Text
-              style={styles.pageTitle}
+              style={
+                styles.pageTitle
+              }
             >
               TERMS & CONDITIONS
             </Text>
 
             <View
-              style={styles.titleRule}
+              style={
+                styles.titleRule
+              }
             />
           </View>
 
@@ -1883,21 +2445,31 @@ export default function DocumentPdf(
       ================================================= */}
 
       {props.warrantyContent && (
-        <PdfPage props={props}>
+        <PdfPage
+          props={
+            props
+          }
+        >
           <View
             style={
               styles.pageTitleWrapper
             }
-            wrap={false}
+            wrap={
+              false
+            }
           >
             <Text
-              style={styles.pageTitle}
+              style={
+                styles.pageTitle
+              }
             >
               WARRANTY
             </Text>
 
             <View
-              style={styles.titleRule}
+              style={
+                styles.titleRule
+              }
             />
           </View>
 
@@ -1914,7 +2486,10 @@ export default function DocumentPdf(
       ================================================= */}
 
       {props.items.map(
-        (item, index) => {
+        (
+          item,
+          index
+        ) => {
           if (
             !item.annexureContent
           ) {
@@ -1924,15 +2499,17 @@ export default function DocumentPdf(
           return (
             <PdfPage
               key={`annexure-${index}`}
-              props={props}
+              props={
+                props
+              }
             >
-              {/* Annexure title */}
-
               <View
                 style={
                   styles.pageTitleWrapper
                 }
-                wrap={false}
+                wrap={
+                  false
+                }
               >
                 <Text
                   style={
@@ -1949,17 +2526,15 @@ export default function DocumentPdf(
                 />
               </View>
 
-              {/* Product */}
-
               <Text
                 style={
                   styles.annexureMachine
                 }
               >
-                {item.productName}
+                {
+                  item.productName
+                }
               </Text>
-
-              {/* Model */}
 
               {item.productModel && (
                 <Text
@@ -1968,11 +2543,11 @@ export default function DocumentPdf(
                   }
                 >
                   Model:{" "}
-                  {item.productModel}
+                  {
+                    item.productModel
+                  }
                 </Text>
               )}
-
-              {/* Variant */}
 
               {item.variantName && (
                 <Text
@@ -1981,11 +2556,11 @@ export default function DocumentPdf(
                   }
                 >
                   Variant:{" "}
-                  {item.variantName}
+                  {
+                    item.variantName
+                  }
                 </Text>
               )}
-
-              {/* Product Description */}
 
               {item.productDescription && (
                 <>
@@ -2008,8 +2583,6 @@ export default function DocumentPdf(
                   </Text>
                 </>
               )}
-
-              {/* Annexure Rich Text */}
 
               <RichPdfContent
                 html={

@@ -12,6 +12,14 @@ import {
 } from "@/lib/document-number";
 
 /* =========================================================
+   TYPES
+========================================================= */
+
+type GstType =
+  | "CGST_SGST"
+  | "IGST";
+
+/* =========================================================
    HELPERS
 ========================================================= */
 
@@ -50,6 +58,88 @@ function cleanUppercase(
       .toUpperCase();
 
   return cleaned || null;
+}
+
+/* =========================================================
+   GST HELPERS
+========================================================= */
+
+function normalizeState(
+  value:
+    | string
+    | null
+    | undefined
+) {
+  return String(
+    value ?? ""
+  )
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+}
+
+function normalizeGstType(
+  value:
+    | string
+    | null
+    | undefined
+): GstType {
+  return value === "IGST"
+    ? "IGST"
+    : "CGST_SGST";
+}
+
+function determineGstType({
+  customerState,
+  companyState,
+  fallback,
+}: {
+  customerState:
+    | string
+    | null
+    | undefined;
+
+  companyState:
+    | string
+    | null
+    | undefined;
+
+  fallback:
+    | string
+    | null
+    | undefined;
+}): GstType {
+  const normalizedCustomerState =
+    normalizeState(
+      customerState
+    );
+
+  const normalizedCompanyState =
+    normalizeState(
+      companyState
+    );
+
+  /*
+   * If both states are present,
+   * state comparison is authoritative.
+   */
+  if (
+    normalizedCustomerState &&
+    normalizedCompanyState
+  ) {
+    return normalizedCustomerState ===
+      normalizedCompanyState
+      ? "CGST_SGST"
+      : "IGST";
+  }
+
+  /*
+   * If state information is incomplete,
+   * use configured default GST type.
+   */
+  return normalizeGstType(
+    fallback
+  );
 }
 
 /* =========================================================
@@ -162,14 +252,6 @@ async function resolveCustomer({
   ----------------------------------------------------- */
 
   if (existingCustomer) {
-    /*
-     * Refresh the customer master from the latest
-     * document information.
-     *
-     * Empty document fields do NOT erase existing
-     * customer information.
-     */
-
     const customer =
       await prisma.customer.update({
         where: {
@@ -349,9 +431,6 @@ export async function POST(
 
     /*
      * Customer master stores one primary email.
-     *
-     * The document recipient list can still
-     * contain multiple To / CC emails.
      */
 
     const primaryEmail =
@@ -431,10 +510,6 @@ export async function POST(
           )
       );
 
-    /*
-     * Reject invalid product IDs.
-     */
-
     if (
       productIds.some(
         (id: number) =>
@@ -465,7 +540,8 @@ export async function POST(
       await prisma.product.findMany({
         where: {
           id: {
-            in: productIds,
+            in:
+              productIds,
           },
 
           isActive:
@@ -480,11 +556,6 @@ export async function POST(
             true,
         },
       });
-
-    /*
-     * Same product may appear more than once,
-     * therefore compare against unique IDs.
-     */
 
     if (
       products.length !==
@@ -561,7 +632,9 @@ export async function POST(
           ) {
             variant =
               product.variants.find(
-                (variant) =>
+                (
+                  variant
+                ) =>
                   variant.id ===
                     Number(
                       item.variantId
@@ -578,7 +651,9 @@ export async function POST(
 
           const hasActiveVariants =
             product.variants.some(
-              (variant) =>
+              (
+                variant
+              ) =>
                 variant.isActive
             );
 
@@ -631,11 +706,13 @@ export async function POST(
           if (
             priceOverride !==
               null &&
-            (!Number.isFinite(
-              priceOverride
-            ) ||
+            (
+              !Number.isFinite(
+                priceOverride
+              ) ||
               priceOverride <
-                0)
+                0
+            )
           ) {
             throw new Error(
               `Invalid price override for ${product.name}.`
@@ -690,8 +767,7 @@ export async function POST(
               product.description,
 
             categoryName:
-              product.category
-                .name,
+              product.category.name,
 
             variantName:
               variant?.name ??
@@ -717,7 +793,7 @@ export async function POST(
       );
 
     /* =========================================
-       TOTALS
+       SUBTOTAL
     ========================================= */
 
     const subtotal =
@@ -736,11 +812,9 @@ export async function POST(
         0
       );
 
-    /*
-     * Form value wins.
-     *
-     * If absent, use Settings GST.
-     */
+    /* =========================================
+       GST %
+    ========================================= */
 
     const gstPercent =
       Number(
@@ -769,10 +843,82 @@ export async function POST(
       );
     }
 
-    const gstAmount =
+    /* =========================================
+       GST TYPE
+
+       Backend determines this independently.
+
+       Same state:
+       -> CGST + SGST
+
+       Different state:
+       -> IGST
+    ========================================= */
+
+    const gstType =
+      determineGstType({
+        customerState,
+
+        companyState:
+          settings.companyState,
+
+        fallback:
+          settings.gstType,
+      });
+
+    /* =========================================
+       GST BREAKUP
+    ========================================= */
+
+    const cgstPercent =
+      gstType ===
+      "CGST_SGST"
+        ? gstPercent /
+          2
+        : 0;
+
+    const sgstPercent =
+      gstType ===
+      "CGST_SGST"
+        ? gstPercent /
+          2
+        : 0;
+
+    const igstPercent =
+      gstType ===
+      "IGST"
+        ? gstPercent
+        : 0;
+
+    const cgstAmount =
       subtotal *
-      (gstPercent /
-        100);
+      (
+        cgstPercent /
+        100
+      );
+
+    const sgstAmount =
+      subtotal *
+      (
+        sgstPercent /
+        100
+      );
+
+    const igstAmount =
+      subtotal *
+      (
+        igstPercent /
+        100
+      );
+
+    /*
+     * Total GST remains useful
+     * regardless of GST type.
+     */
+    const gstAmount =
+      cgstAmount +
+      sgstAmount +
+      igstAmount;
 
     const grandTotal =
       subtotal +
@@ -781,14 +927,6 @@ export async function POST(
     /* =========================================
        CUSTOMER MASTER
     ========================================= */
-
-    /*
-     * IMPORTANT:
-     *
-     * Any customer entered directly while
-     * creating a document is automatically
-     * added to / linked with Customer master.
-     */
 
     const masterCustomer =
       await resolveCustomer({
@@ -860,12 +998,6 @@ export async function POST(
 
           /* -------------------------------------
              CUSTOMER SNAPSHOT
-
-             This deliberately remains separate
-             from Customer master.
-
-             Editing Customer later will NOT
-             change this historical document.
           ------------------------------------- */
 
           customerNameFirm:
@@ -896,7 +1028,21 @@ export async function POST(
 
           subtotal,
 
+          gstType,
+
           gstPercent,
+
+          cgstPercent,
+
+          cgstAmount,
+
+          sgstPercent,
+
+          sgstAmount,
+
+          igstPercent,
+
+          igstAmount,
 
           gstAmount,
 
@@ -958,7 +1104,9 @@ export async function POST(
           recipients: {
             create: [
               ...toEmails.map(
-                (email) => ({
+                (
+                  email
+                ) => ({
                   email,
 
                   type:
@@ -967,7 +1115,9 @@ export async function POST(
               ),
 
               ...ccEmails.map(
-                (email) => ({
+                (
+                  email
+                ) => ({
                   email,
 
                   type:
@@ -990,14 +1140,15 @@ export async function POST(
 
               description:
                 saveAsDraft
-                  ? `Draft saved by ${session.name}. Customer linked to ${masterCustomer.nameFirmName}.`
-                  : `Document created by ${session.name} and sent for preview. Customer linked to ${masterCustomer.nameFirmName}.`,
+                  ? `Draft saved by ${session.name}. Customer linked to ${masterCustomer.nameFirmName}. GST type: ${gstType}.`
+                  : `Document created by ${session.name} and sent for preview. Customer linked to ${masterCustomer.nameFirmName}. GST type: ${gstType}.`,
             },
           },
         },
 
         select: {
-          id: true,
+          id:
+            true,
 
           documentNumber:
             true,
@@ -1010,6 +1161,36 @@ export async function POST(
 
           customerId:
             true,
+
+          gstType:
+            true,
+
+          gstPercent:
+            true,
+
+          cgstPercent:
+            true,
+
+          cgstAmount:
+            true,
+
+          sgstPercent:
+            true,
+
+          sgstAmount:
+            true,
+
+          igstPercent:
+            true,
+
+          igstAmount:
+            true,
+
+          gstAmount:
+            true,
+
+          grandTotal:
+            true,
         },
       });
 
@@ -1019,7 +1200,8 @@ export async function POST(
 
     return NextResponse.json(
       {
-        success: true,
+        success:
+          true,
 
         message:
           saveAsDraft
@@ -1030,7 +1212,8 @@ export async function POST(
           document,
       },
       {
-        status: 201,
+        status:
+          201,
       }
     );
   } catch (error) {
@@ -1041,15 +1224,18 @@ export async function POST(
 
     return NextResponse.json(
       {
-        success: false,
+        success:
+          false,
 
         message:
-          error instanceof Error
+          error instanceof
+            Error
             ? error.message
             : "Unable to create document.",
       },
       {
-        status: 500,
+        status:
+          500,
       }
     );
   }

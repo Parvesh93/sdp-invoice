@@ -1,11 +1,15 @@
 import DocumentForm from "@/components/documents/document-form";
 import { prisma } from "@/lib/prisma";
+import { getSettings } from "@/lib/settings";
+
+export const dynamic = "force-dynamic";
 
 export default async function CreateDocumentPage() {
   const [
     categories,
     products,
     customers,
+    settings,
   ] = await Promise.all([
     prisma.category.findMany({
       where: {
@@ -75,6 +79,8 @@ export default async function CreateDocumentPage() {
         nameFirmName: "asc",
       },
     }),
+
+    getSettings(),
   ]);
 
   return (
@@ -92,15 +98,39 @@ export default async function CreateDocumentPage() {
       <DocumentForm
         categories={categories}
         customers={customers}
-        products={products.map((product) => ({
-          id: product.id,
-          name: product.name,
-          model: product.model,
-          description: product.description,
-          categoryId: product.categoryId,
-          standardPrice: product.standardPrice.toString(),
-          variants: product.variants,
-        }))}
+        companyState={
+          settings.companyState
+        }
+        defaultGstPercent={
+          settings.gst
+        }
+        defaultGstType={
+          settings.gstType
+        }
+        products={products.map(
+          (product) => ({
+            id:
+              product.id,
+
+            name:
+              product.name,
+
+            model:
+              product.model,
+
+            description:
+              product.description,
+
+            categoryId:
+              product.categoryId,
+
+            standardPrice:
+              product.standardPrice.toString(),
+
+            variants:
+              product.variants,
+          })
+        )}
       />
     </div>
   );

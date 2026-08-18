@@ -7,6 +7,7 @@ import {
 
 import { prisma } from "@/lib/prisma";
 import { getSettings } from "@/lib/settings";
+
 import {
   amountToIndianWords,
 } from "@/lib/number-to-words";
@@ -205,11 +206,36 @@ export async function generateDocumentPdf(
       subtotal:
         document.subtotal.toString(),
 
+      /* =====================================
+         GST BREAKUP
+      ===================================== */
+
+      gstType:
+        document.gstType,
+
       gstPercent:
         document.gstPercent.toString(),
 
       gstAmount:
         document.gstAmount.toString(),
+
+      cgstPercent:
+        document.cgstPercent.toString(),
+
+      cgstAmount:
+        document.cgstAmount.toString(),
+
+      sgstPercent:
+        document.sgstPercent.toString(),
+
+      sgstAmount:
+        document.sgstAmount.toString(),
+
+      igstPercent:
+        document.igstPercent.toString(),
+
+      igstAmount:
+        document.igstAmount.toString(),
 
       grandTotal:
         document.grandTotal.toString(),
@@ -279,7 +305,9 @@ export async function generateDocumentPdf(
     document,
 
     buffer:
-      Buffer.from(buffer),
+      Buffer.from(
+        buffer
+      ),
 
     filename:
       `${document.documentNumber}.pdf`,

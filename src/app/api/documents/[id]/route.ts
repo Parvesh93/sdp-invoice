@@ -5,7 +5,6 @@ import {
 
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-
 import { getSettings } from "@/lib/settings";
 
 type RouteContext = {
@@ -13,6 +12,14 @@ type RouteContext = {
     id: string;
   }>;
 };
+
+type GstType =
+  | "CGST_SGST"
+  | "IGST";
+
+/* =========================================================
+   HELPERS
+========================================================= */
 
 function parseEmails(
   value: string
@@ -27,11 +34,125 @@ function parseEmails(
     .filter(Boolean);
 }
 
+function cleanString(
+  value: unknown
+) {
+  const cleaned =
+    String(
+      value ?? ""
+    ).trim();
+
+  return cleaned || null;
+}
+
+function cleanUppercase(
+  value: unknown
+) {
+  const cleaned =
+    String(
+      value ?? ""
+    )
+      .trim()
+      .toUpperCase();
+
+  return cleaned || null;
+}
+
+/* =========================================================
+   GST HELPERS
+========================================================= */
+
+function normalizeState(
+  value:
+    | string
+    | null
+    | undefined
+) {
+  return String(
+    value ?? ""
+  )
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+}
+
+function normalizeGstType(
+  value:
+    | string
+    | null
+    | undefined
+): GstType {
+  return value === "IGST"
+    ? "IGST"
+    : "CGST_SGST";
+}
+
+function determineGstType({
+  customerState,
+  companyState,
+  fallback,
+}: {
+  customerState:
+    | string
+    | null
+    | undefined;
+
+  companyState:
+    | string
+    | null
+    | undefined;
+
+  fallback:
+    | string
+    | null
+    | undefined;
+}): GstType {
+  const normalizedCustomerState =
+    normalizeState(
+      customerState
+    );
+
+  const normalizedCompanyState =
+    normalizeState(
+      companyState
+    );
+
+  /*
+   * If both states are available,
+   * the state comparison is authoritative.
+   */
+  if (
+    normalizedCustomerState &&
+    normalizedCompanyState
+  ) {
+    return normalizedCustomerState ===
+      normalizedCompanyState
+      ? "CGST_SGST"
+      : "IGST";
+  }
+
+  /*
+   * If either state is missing,
+   * fall back to Settings.
+   */
+  return normalizeGstType(
+    fallback
+  );
+}
+
+/* =========================================================
+   UPDATE DOCUMENT
+========================================================= */
+
 export async function PUT(
   request: NextRequest,
   context: RouteContext
 ) {
   try {
+    /* =========================================
+       AUTH
+    ========================================= */
+
     const session =
       await getSession();
 
@@ -39,6 +160,7 @@ export async function PUT(
       return NextResponse.json(
         {
           success: false,
+
           message:
             "Unauthorized.",
         },
@@ -47,6 +169,10 @@ export async function PUT(
         }
       );
     }
+
+    /* =========================================
+       DOCUMENT ID
+    ========================================= */
 
     const { id } =
       await context.params;
@@ -62,6 +188,7 @@ export async function PUT(
       return NextResponse.json(
         {
           success: false,
+
           message:
             "Invalid document ID.",
         },
@@ -71,10 +198,15 @@ export async function PUT(
       );
     }
 
+    /* =========================================
+       EXISTING DOCUMENT
+    ========================================= */
+
     const existingDocument =
       await prisma.document.findUnique({
         where: {
-          id: documentId,
+          id:
+            documentId,
         },
       });
 
@@ -82,6 +214,7 @@ export async function PUT(
       return NextResponse.json(
         {
           success: false,
+
           message:
             "Document not found.",
         },
@@ -91,6 +224,9 @@ export async function PUT(
       );
     }
 
+    /*
+     * Once sent, preserve the final document.
+     */
     if (
       existingDocument.status ===
       "SENT"
@@ -98,6 +234,7 @@ export async function PUT(
       return NextResponse.json(
         {
           success: false,
+
           message:
             "Sent documents cannot be edited.",
         },
@@ -107,11 +244,15 @@ export async function PUT(
       );
     }
 
+    /* =========================================
+       REQUEST
+    ========================================= */
+
     const body =
       await request.json();
 
-      const settings =
-  await getSettings();
+    const settings =
+      await getSettings();
 
     const saveAsDraft =
       body.saveAsDraft ===
@@ -122,6 +263,10 @@ export async function PUT(
       "ORDER_FORM"
         ? "ORDER_FORM"
         : "QUOTATION";
+
+    /* =========================================
+       CUSTOMER
+    ========================================= */
 
     const customer =
       body.customer ?? {};
@@ -136,6 +281,7 @@ export async function PUT(
       return NextResponse.json(
         {
           success: false,
+
           message:
             "Name / Firm Name is required.",
         },
@@ -145,15 +291,81 @@ export async function PUT(
       );
     }
 
+    const customerPhone =
+      cleanString(
+        customer.phone
+      );
+
+    const customerWhatsapp =
+      cleanString(
+        customer.whatsapp
+      );
+
+    const customerGST =
+      cleanUppercase(
+        customer.gstNumber
+      );
+
+    const customerCity =
+      cleanString(
+        customer.city
+      );
+
+    const customerState =
+      cleanString(
+        customer.state
+      );
+
+    const customerAddressLine1 =
+      cleanString(
+        customer.addressLine1
+      );
+
+    const customerAddressLine2 =
+      cleanString(
+        customer.addressLine2
+      );
+
+    const customerAddressLine3 =
+      cleanString(
+        customer.addressLine3
+      );
+
+    /* =========================================
+       EMAILS
+    ========================================= */
+
+    const toEmails =
+      parseEmails(
+        String(
+          customer.email ??
+            ""
+        )
+      );
+
+    const ccEmails =
+      parseEmails(
+        String(
+          customer.cc ??
+            ""
+        )
+      );
+
+    /* =========================================
+       ITEMS
+    ========================================= */
+
     if (
       !Array.isArray(
         body.items
       ) ||
-      body.items.length === 0
+      body.items.length ===
+        0
     ) {
       return NextResponse.json(
         {
           success: false,
+
           message:
             "At least one product is required.",
         },
@@ -174,19 +386,78 @@ export async function PUT(
           )
       );
 
+    if (
+      productIds.some(
+        (
+          productId: number
+        ) =>
+          !Number.isInteger(
+            productId
+          ) ||
+          productId <= 0
+      )
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+
+          message:
+            "One or more selected products are invalid.",
+        },
+        {
+          status: 422,
+        }
+      );
+    }
+
+    /* =========================================
+       LOAD PRODUCTS
+    ========================================= */
+
     const products =
       await prisma.product.findMany({
         where: {
           id: {
-            in: productIds,
+            in:
+              productIds,
           },
         },
 
         include: {
-          category: true,
-          variants: true,
+          category:
+            true,
+
+          variants:
+            true,
         },
       });
+
+    /*
+     * Same product can appear multiple times,
+     * so compare against unique IDs.
+     */
+    if (
+      products.length !==
+      new Set(
+        productIds
+      ).size
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+
+          message:
+            "One or more selected products are invalid.",
+        },
+        {
+          status: 422,
+        }
+      );
+    }
+
+    /* =========================================
+       PREPARE ITEMS
+    ========================================= */
 
     const preparedItems =
       body.items.map(
@@ -203,11 +474,14 @@ export async function PUT(
 
           priceOverride:
             | number
+            | string
             | null;
         }) => {
           const product =
             products.find(
-              (product) =>
+              (
+                product
+              ) =>
                 product.id ===
                 Number(
                   item.productId
@@ -220,34 +494,52 @@ export async function PUT(
             );
           }
 
+          /* -------------------------------------
+             VARIANT
+          ------------------------------------- */
+
           let variant:
             | (typeof product.variants)[number]
             | undefined;
 
           if (
-            item.variantId
+            item.variantId !==
+              null &&
+            item.variantId !==
+              undefined &&
+            Number(
+              item.variantId
+            ) > 0
           ) {
             variant =
               product.variants.find(
-                (variant) =>
+                (
+                  variant
+                ) =>
                   variant.id ===
-                  Number(
-                    item.variantId
-                  )
+                    Number(
+                      item.variantId
+                    ) &&
+                  variant.isActive
               );
 
             if (!variant) {
               throw new Error(
-                `Invalid variant selected for ${product.name}.`
+                `Invalid or inactive variant selected for ${product.name}.`
               );
             }
           }
 
-          if (
+          const hasActiveVariants =
             product.variants.some(
-              (variant) =>
+              (
+                variant
+              ) =>
                 variant.isActive
-            ) &&
+            );
+
+          if (
+            hasActiveVariants &&
             !variant
           ) {
             throw new Error(
@@ -255,16 +547,38 @@ export async function PUT(
             );
           }
 
+          /* -------------------------------------
+             STANDARD PRICE
+          ------------------------------------- */
+
           const standardPrice =
             Number(
               product.standardPrice
             );
 
+          if (
+            !Number.isFinite(
+              standardPrice
+            ) ||
+            standardPrice < 0
+          ) {
+            throw new Error(
+              `Invalid standard price for ${product.name}.`
+            );
+          }
+
+          /* -------------------------------------
+             PRICE OVERRIDE
+          ------------------------------------- */
+
           const priceOverride =
             item.priceOverride ===
               null ||
             item.priceOverride ===
-              undefined
+              undefined ||
+            String(
+              item.priceOverride
+            ).trim() === ""
               ? null
               : Number(
                   item.priceOverride
@@ -273,10 +587,15 @@ export async function PUT(
           if (
             priceOverride !==
               null &&
-            priceOverride < 0
+            (
+              !Number.isFinite(
+                priceOverride
+              ) ||
+              priceOverride < 0
+            )
           ) {
             throw new Error(
-              "Price override cannot be negative."
+              `Invalid price override for ${product.name}.`
             );
           }
 
@@ -286,13 +605,29 @@ export async function PUT(
               ? priceOverride
               : standardPrice;
 
+          /* -------------------------------------
+             QUANTITY
+          ------------------------------------- */
+
           const quantity =
-            Math.max(
-              1,
-              Number(
-                item.quantity
-              )
+            Number(
+              item.quantity
             );
+
+          if (
+            !Number.isInteger(
+              quantity
+            ) ||
+            quantity < 1
+          ) {
+            throw new Error(
+              `Quantity must be at least 1 for ${product.name}.`
+            );
+          }
+
+          /* -------------------------------------
+             ITEM SNAPSHOT
+          ------------------------------------- */
 
           return {
             productId:
@@ -312,15 +647,15 @@ export async function PUT(
               product.description,
 
             categoryName:
-              product.category
-                .name,
+              product.category.name,
 
             variantName:
               variant?.name ??
               null,
 
-              annexureSnapshot:
-  product.annexureContent,
+            annexureSnapshot:
+              product.annexureContent ??
+              null,
 
             standardPrice,
 
@@ -337,11 +672,17 @@ export async function PUT(
         }
       );
 
+    /* =========================================
+       SUBTOTAL
+    ========================================= */
+
     const subtotal =
       preparedItems.reduce(
         (
           sum: number,
-          item: typeof preparedItems[number]
+
+          item:
+            (typeof preparedItems)[number]
         ) =>
           sum +
           item.lineTotal,
@@ -349,9 +690,16 @@ export async function PUT(
         0
       );
 
+    /* =========================================
+       GST PERCENTAGE
+    ========================================= */
+
     const gstPercent =
       Number(
         body.gstPercent ??
+          settings.gst ??
+          existingDocument
+            .gstPercent ??
           18
       );
 
@@ -359,13 +707,15 @@ export async function PUT(
       !Number.isFinite(
         gstPercent
       ) ||
-      gstPercent < 0
+      gstPercent < 0 ||
+      gstPercent > 100
     ) {
       return NextResponse.json(
         {
           success: false,
+
           message:
-            "Invalid GST percentage.",
+            "GST percentage must be between 0 and 100.",
         },
         {
           status: 422,
@@ -373,37 +723,110 @@ export async function PUT(
       );
     }
 
-    const gstAmount =
+    /* =========================================
+       AUTOMATIC GST TYPE
+
+       Company State == Customer State
+       -> CGST + SGST
+
+       Company State != Customer State
+       -> IGST
+    ========================================= */
+
+    const gstType =
+      determineGstType({
+        customerState,
+
+        companyState:
+          settings.companyState,
+
+        fallback:
+          settings.gstType ??
+          existingDocument.gstType,
+      });
+
+    /* =========================================
+       GST BREAKUP
+    ========================================= */
+
+    const cgstPercent =
+      gstType ===
+      "CGST_SGST"
+        ? gstPercent /
+          2
+        : 0;
+
+    const sgstPercent =
+      gstType ===
+      "CGST_SGST"
+        ? gstPercent /
+          2
+        : 0;
+
+    const igstPercent =
+      gstType ===
+      "IGST"
+        ? gstPercent
+        : 0;
+
+    const cgstAmount =
       subtotal *
-      (gstPercent / 100);
+      (
+        cgstPercent /
+        100
+      );
+
+    const sgstAmount =
+      subtotal *
+      (
+        sgstPercent /
+        100
+      );
+
+    const igstAmount =
+      subtotal *
+      (
+        igstPercent /
+        100
+      );
+
+    /*
+     * Total GST is the combined
+     * tax amount regardless of type.
+     */
+    const gstAmount =
+      cgstAmount +
+      sgstAmount +
+      igstAmount;
 
     const grandTotal =
       subtotal +
       gstAmount;
 
-    const toEmails =
-      parseEmails(
-        String(
-          customer.email ??
-            ""
-        )
-      );
-
-    const ccEmails =
-      parseEmails(
-        String(
-          customer.cc ?? ""
-        )
-      );
+    /* =========================================
+       STATUS
+    ========================================= */
 
     const nextStatus =
       saveAsDraft
         ? "DRAFT"
         : "PREVIEWED";
 
+    /* =========================================
+       TRANSACTION
+    ========================================= */
+
     const updated =
       await prisma.$transaction(
-        async (tx) => {
+        async (
+          tx
+        ) => {
+          /*
+           * Existing item/recipient snapshots
+           * are replaced with the newly edited
+           * values.
+           */
+
           await tx.documentItem.deleteMany({
             where: {
               documentId,
@@ -418,119 +841,130 @@ export async function PUT(
 
           return tx.document.update({
             where: {
-              id: documentId,
+              id:
+                documentId,
             },
 
             data: {
+              /* ---------------------------------
+                 DOCUMENT
+              --------------------------------- */
+
               documentType,
 
               status:
                 nextStatus,
 
+              /*
+               * Editing requires approval again.
+               */
               approvedAt:
                 null,
+
+              /* ---------------------------------
+                 CUSTOMER SNAPSHOT
+              --------------------------------- */
 
               customerNameFirm:
                 nameFirmName,
 
-              customerPhone:
-                String(
-                  customer.phone ??
-                    ""
-                ).trim() ||
-                null,
+              customerPhone,
 
-              customerWhatsapp:
-                String(
-                  customer.whatsapp ??
-                    ""
-                ).trim() ||
-                null,
+              customerWhatsapp,
 
-              customerGST:
-                String(
-                  customer.gstNumber ??
-                    ""
-                ).trim() ||
-                null,
+              customerGST,
 
-              customerCity:
-                String(
-                  customer.city ??
-                    ""
-                ).trim() ||
-                null,
+              customerCity,
 
-              customerState:
-                String(
-                  customer.state ??
-                    ""
-                ).trim() ||
-                null,
+              customerState,
 
               addressLine1:
-                String(
-                  customer.addressLine1 ??
-                    ""
-                ).trim() ||
-                null,
+                customerAddressLine1,
 
               addressLine2:
-                String(
-                  customer.addressLine2 ??
-                    ""
-                ).trim() ||
-                null,
+                customerAddressLine2,
 
               addressLine3:
-                String(
-                  customer.addressLine3 ??
-                    ""
-                ).trim() ||
-                null,
+                customerAddressLine3,
+
+              /* ---------------------------------
+                 TOTALS
+              --------------------------------- */
 
               subtotal,
 
+              gstType,
+
               gstPercent,
+
+              cgstPercent,
+
+              cgstAmount,
+
+              sgstPercent,
+
+              sgstAmount,
+
+              igstPercent,
+
+              igstAmount,
 
               gstAmount,
 
               grandTotal,
 
               additionalNotes:
-                String(
-                  body.additionalNotes ??
-                    ""
-                ).trim() ||
+                cleanString(
+                  body.additionalNotes
+                ),
+
+              /* ---------------------------------
+                 SETTINGS SNAPSHOT
+              --------------------------------- */
+
+              headerBannerSnapshot:
+                settings.headerBanner ||
                 null,
 
-                headerBannerSnapshot:
-  settings.headerBanner || null,
+              footerBannerSnapshot:
+                settings.footerBanner ||
+                null,
 
-footerBannerSnapshot:
-  settings.footerBanner || null,
+              termsSnapshot:
+                settings.terms ||
+                null,
 
-termsSnapshot:
-  settings.terms || null,
+              warrantySnapshot:
+                settings.warranty ||
+                null,
 
-warrantySnapshot:
-  settings.warranty || null,
+              quoteFooterSnapshot:
+                settings.quoteFooter ||
+                null,
 
-quoteFooterSnapshot:
-  settings.quoteFooter || null,
+              signatureImageSnapshot:
+                settings.signatureImage ||
+                null,
 
-signatureImageSnapshot:
-  settings.signatureImage || null,
+              /* ---------------------------------
+                 ITEMS
+              --------------------------------- */
 
               items: {
                 create:
                   preparedItems,
               },
 
+              /* ---------------------------------
+                 RECIPIENTS
+              --------------------------------- */
+
               recipients: {
                 create: [
                   ...toEmails.map(
-                    (email) => ({
+                    (
+                      email
+                    ) => ({
                       email,
 
                       type:
@@ -539,7 +973,9 @@ signatureImageSnapshot:
                   ),
 
                   ...ccEmails.map(
-                    (email) => ({
+                    (
+                      email
+                    ) => ({
                       email,
 
                       type:
@@ -548,6 +984,10 @@ signatureImageSnapshot:
                   ),
                 ],
               },
+
+              /* ---------------------------------
+                 ACTIVITY
+              --------------------------------- */
 
               activities: {
                 create: {
@@ -558,26 +998,63 @@ signatureImageSnapshot:
 
                   description:
                     saveAsDraft
-                      ? `Draft saved by ${session.name}.`
-                      : `Document edited by ${session.name}. Approval required again.`,
+                      ? `Draft saved by ${session.name}. GST type: ${gstType}.`
+                      : `Document edited by ${session.name}. Approval required again. GST type: ${gstType}.`,
                 },
               },
             },
 
             select: {
-              id: true,
+              id:
+                true,
 
               documentNumber:
                 true,
 
-              status: true,
+              status:
+                true,
+
+              gstType:
+                true,
+
+              gstPercent:
+                true,
+
+              cgstPercent:
+                true,
+
+              cgstAmount:
+                true,
+
+              sgstPercent:
+                true,
+
+              sgstAmount:
+                true,
+
+              igstPercent:
+                true,
+
+              igstAmount:
+                true,
+
+              gstAmount:
+                true,
+
+              grandTotal:
+                true,
             },
           });
         }
       );
 
+    /* =========================================
+       RESPONSE
+    ========================================= */
+
     return NextResponse.json({
-      success: true,
+      success:
+        true,
 
       message:
         saveAsDraft
@@ -593,6 +1070,36 @@ signatureImageSnapshot:
 
         status:
           updated.status,
+
+        gstType:
+          updated.gstType,
+
+        gstPercent:
+          updated.gstPercent,
+
+        cgstPercent:
+          updated.cgstPercent,
+
+        cgstAmount:
+          updated.cgstAmount,
+
+        sgstPercent:
+          updated.sgstPercent,
+
+        sgstAmount:
+          updated.sgstAmount,
+
+        igstPercent:
+          updated.igstPercent,
+
+        igstAmount:
+          updated.igstAmount,
+
+        gstAmount:
+          updated.gstAmount,
+
+        grandTotal:
+          updated.grandTotal,
       },
     });
   } catch (error) {
@@ -603,15 +1110,18 @@ signatureImageSnapshot:
 
     return NextResponse.json(
       {
-        success: false,
+        success:
+          false,
 
         message:
-          error instanceof Error
+          error instanceof
+            Error
             ? error.message
             : "Unable to update document.",
       },
       {
-        status: 500,
+        status:
+          500,
       }
     );
   }
