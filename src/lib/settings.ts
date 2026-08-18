@@ -2,19 +2,15 @@ import { prisma } from "@/lib/prisma";
 
 export const SETTING_KEYS = {
   GST: "gst",
+  GST_TYPE: "gst_type",
+  COMPANY_STATE: "company_state",
 
   TERMS: "terms",
-
   WARRANTY: "warranty",
-
   HEADER_BANNER: "header_banner",
-
   FOOTER_BANNER: "footer_banner",
-
   QUOTE_FOOTER: "quote_footer",
-
   SIGNATURE_IMAGE: "signature_image",
-
   REFERENCE_PREFIX: "reference_prefix",
 } as const;
 
@@ -43,10 +39,19 @@ export async function getSettings() {
     ])
   );
 
+
   return {
     gst:
       map.get(SETTING_KEYS.GST) ??
       "18",
+
+    gstType:
+  map.get(SETTING_KEYS.GST_TYPE) ??
+  "CGST_SGST",
+
+companyState:
+  map.get(SETTING_KEYS.COMPANY_STATE) ??
+  "",
 
     terms:
       map.get(SETTING_KEYS.TERMS) ??

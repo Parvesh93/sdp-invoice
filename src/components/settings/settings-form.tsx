@@ -11,6 +11,9 @@ type Props = {
   initialSettings: {
     gst: string;
 
+    gstType: string;
+    companyState: string;
+
     terms: string;
 
     warranty: string;
@@ -35,6 +38,16 @@ export default function SettingsForm({
     setGst,
   ] = useState(
     initialSettings.gst
+  );
+
+  const [gstType, setGstType] =
+  useState(
+    initialSettings.gstType
+  );
+
+const [companyState, setCompanyState] =
+  useState(
+    initialSettings.companyState
   );
 
   const [
@@ -127,6 +140,9 @@ export default function SettingsForm({
             body:
               JSON.stringify({
                 gst,
+
+                gstType,
+  companyState,
 
                 terms,
 
@@ -272,60 +288,80 @@ export default function SettingsForm({
         title="Document Settings"
         description="Global document values used in quotations and order forms."
       >
-        <div className="grid gap-6 md:grid-cols-2">
-          <div>
-            <Label>
-              GST Rate (%)
-            </Label>
+        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+  <div>
+    <Label>
+      GST Rate (%)
+    </Label>
 
-            <input
-              type="number"
-              min="0"
-              max="100"
-              step="0.01"
-              value={gst}
-              onChange={(
-                event
-              ) =>
-                setGst(
-                  event.target
-                    .value
-                )
-              }
-              className="w-full rounded-lg border border-slate-300 px-4 py-3"
-            />
+    <input
+      type="number"
+      min="0"
+      max="100"
+      step="0.01"
+      value={gst}
+      onChange={(event) =>
+        setGst(
+          event.target.value
+        )
+      }
+      className="w-full rounded-lg border border-slate-300 px-4 py-3"
+    />
 
-            <p className="mt-2 text-xs text-slate-500">
-              New documents will use this as their default GST percentage.
-            </p>
-          </div>
+    <p className="mt-2 text-xs text-slate-500">
+      Total GST percentage, for example 18%.
+    </p>
+  </div>
 
-          <div>
-            <Label>
-              Reference Prefix
-            </Label>
+  <div>
+    <Label>
+      Default GST Type
+    </Label>
 
-            <input
-              value={
-                referencePrefix
-              }
-              onChange={(
-                event
-              ) =>
-                setReferencePrefix(
-                  event.target
-                    .value
-                )
-              }
-              className="w-full rounded-lg border border-slate-300 px-4 py-3"
-              placeholder="SDPM/RJ/OE"
-            />
+    <select
+      value={gstType}
+      onChange={(event) =>
+        setGstType(
+          event.target.value
+        )
+      }
+      className="w-full rounded-lg border border-slate-300 px-4 py-3"
+    >
+      <option value="CGST_SGST">
+        CGST + SGST
+      </option>
 
-            <p className="mt-2 text-xs text-slate-500">
-              Final format: SDPM/RJ/OE/YYYY-YY/XXXX
-            </p>
-          </div>
-        </div>
+      <option value="IGST">
+        IGST
+      </option>
+    </select>
+
+    <p className="mt-2 text-xs text-slate-500">
+      CGST + SGST for intra-state sales, IGST for inter-state sales.
+    </p>
+  </div>
+
+  <div>
+    <Label>
+      Company State
+    </Label>
+
+    <input
+      value={companyState}
+      onChange={(event) =>
+        setCompanyState(
+          event.target.value
+        )
+      }
+      placeholder="Rajasthan"
+      className="w-full rounded-lg border border-slate-300 px-4 py-3"
+    />
+
+    <p className="mt-2 text-xs text-slate-500">
+      Used to automatically choose GST type based on customer state.
+    </p>
+  </div>
+</div>
       </SettingsSection>
 
       {/* Header */}

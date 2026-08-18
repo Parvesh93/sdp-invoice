@@ -49,6 +49,16 @@ if (
     const gst =
       Number(body.gst);
 
+      const gstType =
+  body.gstType === "IGST"
+    ? "IGST"
+    : "CGST_SGST";
+
+const companyState =
+  String(
+    body.companyState ?? ""
+  ).trim();
+
     if (
       !Number.isFinite(gst) ||
       gst < 0 ||
@@ -72,6 +82,18 @@ if (
         gst.toString(),
         "number"
       ),
+
+      saveSetting(
+  SETTING_KEYS.GST_TYPE,
+  gstType,
+  "text"
+),
+
+saveSetting(
+  SETTING_KEYS.COMPANY_STATE,
+  companyState,
+  "text"
+),
 
       saveSetting(
         SETTING_KEYS.TERMS,
