@@ -34,6 +34,10 @@ export default async function EditDocumentPage({
     notFound();
   }
 
+  /* =======================================================
+     LOAD DATA
+  ======================================================= */
+
   const [
     document,
     categories,
@@ -95,24 +99,6 @@ export default async function EditDocumentPage({
 
         standardPrice:
           true,
-
-        variants: {
-          select: {
-            id:
-              true,
-
-            name:
-              true,
-
-            isActive:
-              true,
-          },
-
-          orderBy: {
-            id:
-              "asc",
-          },
-        },
       },
 
       orderBy: {
@@ -166,9 +152,19 @@ export default async function EditDocumentPage({
     getSettings(),
   ]);
 
-  if (!document) {
+  /* =======================================================
+     DOCUMENT VALIDATION
+  ======================================================= */
+
+  if (
+    !document
+  ) {
     notFound();
   }
+
+  /*
+   * Sent documents should not be editable.
+   */
 
   if (
     document.status ===
@@ -178,6 +174,10 @@ export default async function EditDocumentPage({
       `/documents/${document.id}/preview`
     );
   }
+
+  /* =======================================================
+     RECIPIENTS
+  ======================================================= */
 
   const toEmails =
     document.recipients
@@ -194,7 +194,9 @@ export default async function EditDocumentPage({
         ) =>
           recipient.email
       )
-      .join(", ");
+      .join(
+        ", "
+      );
 
   const ccEmails =
     document.recipients
@@ -211,7 +213,15 @@ export default async function EditDocumentPage({
         ) =>
           recipient.email
       )
-      .join(", ");
+      .join(
+        ", "
+      );
+
+  /* =======================================================
+     PRODUCT MAP
+
+     Used to recover categoryId from the current product.
+  ======================================================= */
 
   const productMap =
     new Map(
@@ -225,8 +235,16 @@ export default async function EditDocumentPage({
       )
     );
 
+  /* =======================================================
+     RENDER
+  ======================================================= */
+
   return (
     <div className="space-y-6">
+      {/* =================================================
+          HEADER
+      ================================================= */}
+
       <div>
         <h1 className="text-2xl font-bold text-slate-900">
           Edit Document
@@ -234,30 +252,41 @@ export default async function EditDocumentPage({
 
         <p className="mt-1 text-sm text-slate-500">
           Edit{" "}
-          {
-            document.documentNumber
-          }
+          <span className="font-medium text-slate-700">
+            {
+              document.documentNumber
+            }
+          </span>
           . Saving changes will
           require approval again.
         </p>
       </div>
 
+      {/* =================================================
+          DOCUMENT FORM
+      ================================================= */}
+
       <DocumentForm
         categories={
           categories
         }
+
         customers={
           customers
         }
+
         companyState={
           settings.companyState
         }
+
         defaultGstPercent={
           settings.gst
         }
+
         defaultGstType={
           settings.gstType
         }
+
         products={products.map(
           (
             product
@@ -279,34 +308,30 @@ export default async function EditDocumentPage({
 
             standardPrice:
               product.standardPrice.toString(),
-
-            variants:
-              product.variants
-                .filter(
-                  (
-                    variant
-                  ) =>
-                    variant.isActive
-                )
-                .map(
-                  (
-                    variant
-                  ) => ({
-                    id:
-                      variant.id,
-
-                    name:
-                      variant.name,
-                  })
-                ),
           })
         )}
+
         document={{
           id:
             document.id,
 
           documentType:
             document.documentType,
+
+          /* =============================================
+             ISSUER INITIALS
+
+             Preserve the initials that were saved when
+             this document was originally created.
+          ============================================= */
+
+          issuerInitials:
+            document.issuerInitials ??
+            "",
+
+          /* =============================================
+             CUSTOMER
+          ============================================= */
 
           customer: {
             nameFirmName:
@@ -351,15 +376,27 @@ export default async function EditDocumentPage({
               "",
           },
 
+          /* =============================================
+             GST
+          ============================================= */
+
           gstType:
             document.gstType,
 
           gstPercent:
             document.gstPercent.toString(),
 
+          /* =============================================
+             NOTES
+          ============================================= */
+
           additionalNotes:
             document.additionalNotes ??
             "",
+
+          /* =============================================
+             PRODUCTS
+          ============================================= */
 
           items:
             document.items.map(
@@ -381,10 +418,6 @@ export default async function EditDocumentPage({
                   categoryId:
                     product?.categoryId ??
                     0,
-
-                  variantId:
-                    item.variantId ??
-                    null,
 
                   standardPrice:
                     item.standardPrice.toString(),

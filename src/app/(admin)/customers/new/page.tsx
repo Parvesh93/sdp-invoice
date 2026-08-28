@@ -1,5 +1,7 @@
 import CustomerForm from "@/components/customers/customer-form";
 
+export const dynamic = "force-dynamic";
+
 export default function NewCustomerPage() {
   return (
     <div className="space-y-6">

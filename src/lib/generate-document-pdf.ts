@@ -14,8 +14,15 @@ import {
 
 import DocumentPdf from "@/components/documents/document-pdf";
 
+/* =========================================================
+   IMAGE HELPER
+========================================================= */
+
 async function resolveImageSource(
-  value: string | null | undefined
+  value:
+    | string
+    | null
+    | undefined
 ) {
   if (!value) {
     return null;
@@ -30,7 +37,10 @@ async function resolveImageSource(
   }
 
   const cleanPath =
-    value.replace(/^\/+/, "");
+    value.replace(
+      /^\/+/,
+      ""
+    );
 
   const absolutePath =
     path.join(
@@ -84,19 +94,25 @@ async function resolveImageSource(
   }
 }
 
+/* =========================================================
+   GENERATE PDF
+========================================================= */
+
 export async function generateDocumentPdf(
   documentId: number
 ) {
   const document =
     await prisma.document.findUnique({
       where: {
-        id: documentId,
+        id:
+          documentId,
       },
 
       include: {
         items: {
           orderBy: {
-            id: "asc",
+            id:
+              "asc",
           },
 
           include: {
@@ -108,6 +124,13 @@ export async function generateDocumentPdf(
             },
           },
         },
+
+        recipients: {
+          orderBy: {
+            id:
+              "asc",
+          },
+        },
       },
     });
 
@@ -117,8 +140,16 @@ export async function generateDocumentPdf(
     );
   }
 
+  /* =======================================================
+     SETTINGS
+  ======================================================= */
+
   const settings =
     await getSettings();
+
+  /* =======================================================
+     DOCUMENT SNAPSHOT / FALLBACK SETTINGS
+  ======================================================= */
 
   const termsContent =
     document.termsSnapshot ||
@@ -150,6 +181,15 @@ export async function generateDocumentPdf(
     settings.quoteFooter ||
     null;
 
+    const bankDetails =
+  document.bankDetailsSnapshot ||
+  settings.bankDetails ||
+  null;
+
+  /* =======================================================
+     IMAGES
+  ======================================================= */
+
   const headerBanner =
     await resolveImageSource(
       rawHeaderBanner
@@ -165,8 +205,30 @@ export async function generateDocumentPdf(
       rawSignatureImage
     );
 
+  /* =======================================================
+     PRIMARY TO EMAIL
+  ======================================================= */
+
+  const primaryToEmail =
+    document.recipients.find(
+      (
+        recipient
+      ) =>
+        recipient.type ===
+        "TO"
+    )?.email ??
+    null;
+
+  /* =======================================================
+     PDF
+  ======================================================= */
+
   const pdfElement =
     DocumentPdf({
+      /* -------------------------------------
+         DOCUMENT
+      ------------------------------------- */
+
       documentNumber:
         document.documentNumber,
 
@@ -176,8 +238,15 @@ export async function generateDocumentPdf(
       documentDate:
         document.documentDate,
 
+      /* -------------------------------------
+         CUSTOMER
+      ------------------------------------- */
+
       customerNameFirm:
         document.customerNameFirm,
+
+      customerEmail:
+        primaryToEmail,
 
       customerPhone:
         document.customerPhone,
@@ -203,12 +272,16 @@ export async function generateDocumentPdf(
       addressLine3:
         document.addressLine3,
 
+      /* -------------------------------------
+         TOTALS
+      ------------------------------------- */
+
       subtotal:
         document.subtotal.toString(),
 
-      /* =====================================
-         GST BREAKUP
-      ===================================== */
+      /* -------------------------------------
+         GST
+      ------------------------------------- */
 
       gstType:
         document.gstType,
@@ -245,12 +318,28 @@ export async function generateDocumentPdf(
           document.grandTotal.toString()
         ),
 
+      /* -------------------------------------
+         NOTES
+      ------------------------------------- */
+
       additionalNotes:
         document.additionalNotes,
+
+      /* -------------------------------------
+         CONTENT
+      ------------------------------------- */
 
       termsContent,
 
       warrantyContent,
+
+      quoteFooter,
+
+      bankDetails,
+
+      /* -------------------------------------
+         IMAGES
+      ------------------------------------- */
 
       headerBanner,
 
@@ -258,11 +347,15 @@ export async function generateDocumentPdf(
 
       signatureImage,
 
-      quoteFooter,
+      /* -------------------------------------
+         ITEMS
+      ------------------------------------- */
 
       items:
         document.items.map(
-          (item) => ({
+          (
+            item
+          ) => ({
             productName:
               item.productName,
 
@@ -272,8 +365,12 @@ export async function generateDocumentPdf(
             productDescription:
               item.productDescription,
 
+            /*
+             * Variants are no longer part
+             * of the quotation workflow.
+             */
             variantName:
-              item.variantName,
+              null,
 
             categoryName:
               item.categoryName,
@@ -295,6 +392,10 @@ export async function generateDocumentPdf(
           })
         ),
     });
+
+  /* =======================================================
+     RENDER BUFFER
+  ======================================================= */
 
   const buffer =
     await renderToBuffer(

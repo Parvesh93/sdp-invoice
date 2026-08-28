@@ -4,12 +4,15 @@ import {
 } from "next/server";
 
 import { prisma } from "@/lib/prisma";
-import { getSession } from "@/lib/auth";
 import { getSettings } from "@/lib/settings";
 
 import {
   generateDocumentNumber,
 } from "@/lib/document-number";
+
+import {
+  generateDocumentPdf,
+} from "@/lib/generate-document-pdf";
 
 type GstType =
   | "CGST_SGST"
@@ -40,26 +43,26 @@ function parseEmails(
 function cleanString(
   value: unknown
 ) {
-  const cleaned =
+  const result =
     String(
       value ?? ""
     ).trim();
 
-  return cleaned ||
+  return result ||
     null;
 }
 
 function cleanUppercase(
   value: unknown
 ) {
-  const cleaned =
+  const result =
     String(
       value ?? ""
     )
       .trim()
       .toUpperCase();
 
-  return cleaned ||
+  return result ||
     null;
 }
 
@@ -102,18 +105,6 @@ function normalizeState(
     );
 }
 
-function normalizeGstType(
-  value:
-    | string
-    | null
-    | undefined
-): GstType {
-  return value ===
-    "IGST"
-    ? "IGST"
-    : "CGST_SGST";
-}
-
 function determineGstType({
   customerState,
   companyState,
@@ -130,275 +121,47 @@ function determineGstType({
     | undefined;
 
   fallback:
-    | string
-    | null
-    | undefined;
+    string;
 }): GstType {
-  const normalizedCustomerState =
+  const customer =
     normalizeState(
       customerState
     );
 
-  const normalizedCompanyState =
+  const company =
     normalizeState(
       companyState
     );
 
   if (
-    normalizedCustomerState &&
-    normalizedCompanyState
+    customer &&
+    company
   ) {
-    return normalizedCustomerState ===
-      normalizedCompanyState
+    return customer ===
+      company
       ? "CGST_SGST"
       : "IGST";
   }
 
-  return normalizeGstType(
-    fallback
-  );
+  return fallback ===
+    "IGST"
+    ? "IGST"
+    : "CGST_SGST";
 }
 
 /* =========================================================
-   CUSTOMER RESOLUTION
-========================================================= */
-
-async function resolveCustomer({
-  nameFirmName,
-  email,
-  phone,
-  whatsapp,
-  gstNumber,
-  city,
-  state,
-  addressLine1,
-  addressLine2,
-  addressLine3,
-}: {
-  nameFirmName: string;
-
-  email:
-    | string
-    | null;
-
-  phone:
-    | string
-    | null;
-
-  whatsapp:
-    | string
-    | null;
-
-  gstNumber:
-    | string
-    | null;
-
-  city:
-    | string
-    | null;
-
-  state:
-    | string
-    | null;
-
-  addressLine1:
-    | string
-    | null;
-
-  addressLine2:
-    | string
-    | null;
-
-  addressLine3:
-    | string
-    | null;
-}) {
-  let existingCustomer =
-    null;
-
-  /*
-   * Prefer GST as strongest identity.
-   */
-
-  if (
-    gstNumber
-  ) {
-    existingCustomer =
-      await prisma.customer.findFirst({
-        where: {
-          gstNumber,
-        },
-      });
-  }
-
-  /*
-   * Then Email
-   */
-
-  if (
-    !existingCustomer &&
-    email
-  ) {
-    existingCustomer =
-      await prisma.customer.findFirst({
-        where: {
-          email,
-        },
-      });
-  }
-
-  /*
-   * Then Phone
-   */
-
-  if (
-    !existingCustomer &&
-    phone
-  ) {
-    existingCustomer =
-      await prisma.customer.findFirst({
-        where: {
-          phone,
-        },
-      });
-  }
-
-  /*
-   * Existing Customer
-   */
-
-  if (
-    existingCustomer
-  ) {
-    return prisma.customer.update({
-      where: {
-        id:
-          existingCustomer.id,
-      },
-
-      data: {
-        nameFirmName,
-
-        email:
-          email ??
-          existingCustomer.email,
-
-        phone:
-          phone ??
-          existingCustomer.phone,
-
-        whatsapp:
-          whatsapp ??
-          existingCustomer.whatsapp,
-
-        gstNumber:
-          gstNumber ??
-          existingCustomer.gstNumber,
-
-        city:
-          city ??
-          existingCustomer.city,
-
-        state:
-          state ??
-          existingCustomer.state,
-
-        addressLine1:
-          addressLine1 ??
-          existingCustomer.addressLine1,
-
-        addressLine2:
-          addressLine2 ??
-          existingCustomer.addressLine2,
-
-        addressLine3:
-          addressLine3 ??
-          existingCustomer.addressLine3,
-      },
-    });
-  }
-
-  /*
-   * New Customer
-   */
-
-  return prisma.customer.create({
-    data: {
-      nameFirmName,
-
-      email,
-
-      phone,
-
-      whatsapp,
-
-      gstNumber,
-
-      city,
-
-      state,
-
-      addressLine1,
-
-      addressLine2,
-
-      addressLine3,
-    },
-  });
-}
-
-/* =========================================================
-   CREATE DOCUMENT
+   POST
 ========================================================= */
 
 export async function POST(
   request: NextRequest
 ) {
   try {
-    /* =====================================================
-       AUTH
-    ===================================================== */
-
-    const session =
-      await getSession();
-
-    if (
-      !session
-    ) {
-      return NextResponse.json(
-        {
-          success:
-            false,
-
-          message:
-            "Unauthorized.",
-        },
-        {
-          status:
-            401,
-        }
-      );
-    }
-
     const body =
       await request.json();
 
     const settings =
       await getSettings();
-
-    /* =====================================================
-       DOCUMENT TYPE / SAVE MODE
-    ===================================================== */
-
-    const saveAsDraft =
-      body.saveAsDraft ===
-      true;
-
-    const documentType =
-      body.documentType ===
-      "ORDER_FORM"
-        ? "ORDER_FORM"
-        : "QUOTATION";
 
     /* =====================================================
        ISSUER INITIALS
@@ -475,10 +238,6 @@ export async function POST(
         )
       );
 
-    const primaryEmail =
-      toEmails[0] ??
-      null;
-
     const customerPhone =
       cleanString(
         customer.phone
@@ -504,24 +263,24 @@ export async function POST(
         customer.state
       );
 
-    const customerAddressLine1 =
+    const addressLine1 =
       cleanString(
         customer.addressLine1
       );
 
-    const customerAddressLine2 =
+    const addressLine2 =
       cleanString(
         customer.addressLine2
       );
 
-    const customerAddressLine3 =
+    const addressLine3 =
       cleanString(
         customer.addressLine3
       );
 
     /*
-     * State is mandatory because it is now
-     * part of the document reference number.
+     * State is now mandatory because it is
+     * part of the reference number.
      */
 
     if (
@@ -543,7 +302,7 @@ export async function POST(
     }
 
     /* =====================================================
-       PRODUCTS
+       ITEMS
     ===================================================== */
 
     if (
@@ -609,10 +368,6 @@ export async function POST(
       );
     }
 
-    /*
-     * Variants are intentionally not used.
-     */
-
     const products =
       await prisma.product.findMany({
         where: {
@@ -643,7 +398,7 @@ export async function POST(
             false,
 
           message:
-            "One or more selected products are invalid or inactive.",
+            "One or more selected products are invalid.",
         },
         {
           status:
@@ -708,7 +463,7 @@ export async function POST(
             );
           }
 
-          const priceOverride =
+          const override =
             item.priceOverride ===
               null ||
             item.priceOverride ===
@@ -723,13 +478,13 @@ export async function POST(
                 );
 
           if (
-            priceOverride !==
+            override !==
               null &&
             (
               !Number.isFinite(
-                priceOverride
+                override
               ) ||
-              priceOverride <
+              override <
                 0
             )
           ) {
@@ -739,9 +494,9 @@ export async function POST(
           }
 
           const finalPrice =
-            priceOverride !==
+            override !==
             null
-              ? priceOverride
+              ? override
               : standardPrice;
 
           const quantity =
@@ -757,7 +512,7 @@ export async function POST(
               1
           ) {
             throw new Error(
-              `Quantity must be at least 1 for ${product.name}.`
+              `Invalid quantity for ${product.name}.`
             );
           }
 
@@ -766,7 +521,7 @@ export async function POST(
               product.id,
 
             /*
-             * DB compatibility only.
+             * Variants are intentionally not used.
              */
             variantId:
               null,
@@ -792,7 +547,8 @@ export async function POST(
 
             standardPrice,
 
-            priceOverride,
+            priceOverride:
+              override,
 
             finalPrice,
 
@@ -806,7 +562,7 @@ export async function POST(
       );
 
     /* =====================================================
-       SUBTOTAL
+       TOTALS
     ===================================================== */
 
     const subtotal =
@@ -828,14 +584,11 @@ export async function POST(
 
     /* =====================================================
        GST
-
-       GST percentage is always taken
-       from Admin Settings.
     ===================================================== */
 
     const gstPercent =
       Number(
-        settings.gst ??
+        settings.gst ||
           18
       );
 
@@ -925,40 +678,41 @@ export async function POST(
       gstAmount;
 
     /* =====================================================
-       CUSTOMER MASTER
+       CREATOR
+
+       createdById is required in DB.
+       For public quotations we attribute the document to
+       the first active Admin account.
     ===================================================== */
 
-    const masterCustomer =
-      await resolveCustomer({
-        nameFirmName,
+    const systemOwner =
+      await prisma.user.findFirst({
+        where: {
+          role:
+            "ADMIN",
 
-        email:
-          primaryEmail,
+          isActive:
+            true,
+        },
 
-        phone:
-          customerPhone,
+        select: {
+          id:
+            true,
+        },
 
-        whatsapp:
-          customerWhatsapp,
-
-        gstNumber:
-          customerGST,
-
-        city:
-          customerCity,
-
-        state:
-          customerState,
-
-        addressLine1:
-          customerAddressLine1,
-
-        addressLine2:
-          customerAddressLine2,
-
-        addressLine3:
-          customerAddressLine3,
+        orderBy: {
+          id:
+            "asc",
+        },
       });
+
+    if (
+      !systemOwner
+    ) {
+      throw new Error(
+        "No active administrator account is configured."
+      );
+    }
 
     /* =====================================================
        DOCUMENT NUMBER
@@ -974,11 +728,6 @@ export async function POST(
         issuerInitials,
       });
 
-    const status =
-      saveAsDraft
-        ? "DRAFT"
-        : "PREVIEWED";
-
     /* =====================================================
        CREATE DOCUMENT
     ===================================================== */
@@ -988,21 +737,17 @@ export async function POST(
         data: {
           documentNumber,
 
-          documentType,
+          documentType:
+            "QUOTATION",
 
-          status,
+          status:
+            "PREVIEWED",
 
-          /*
-           * Person issuing the document.
-           */
           issuerInitials,
 
           /* ---------------------------------------------
-             CUSTOMER
+             CUSTOMER SNAPSHOT
           --------------------------------------------- */
-
-          customerId:
-            masterCustomer.id,
 
           customerNameFirm:
             nameFirmName,
@@ -1017,14 +762,11 @@ export async function POST(
 
           customerState,
 
-          addressLine1:
-            customerAddressLine1,
+          addressLine1,
 
-          addressLine2:
-            customerAddressLine2,
+          addressLine2,
 
-          addressLine3:
-            customerAddressLine3,
+          addressLine3,
 
           /* ---------------------------------------------
              TOTALS
@@ -1058,7 +800,7 @@ export async function POST(
             ),
 
           /* ---------------------------------------------
-             DOCUMENT SNAPSHOTS
+             SNAPSHOTS
           --------------------------------------------- */
 
           headerBannerSnapshot:
@@ -1081,27 +823,19 @@ export async function POST(
             settings.quoteFooter ||
             null,
 
-          /*
-           * Bank details only belong
-           * to Order Forms.
-           */
-          bankDetailsSnapshot:
-            documentType ===
-            "ORDER_FORM"
-              ? settings.bankDetails ||
-                null
-              : null,
-
           signatureImageSnapshot:
             settings.signatureImage ||
             null,
 
-          /* ---------------------------------------------
-             CREATED BY
-          --------------------------------------------- */
+          /*
+           * Public route only creates quotations,
+           * therefore bank details are not required.
+           */
+          bankDetailsSnapshot:
+            null,
 
           createdById:
-            session.userId,
+            systemOwner.id,
 
           /* ---------------------------------------------
              ITEMS
@@ -1113,7 +847,7 @@ export async function POST(
           },
 
           /* ---------------------------------------------
-             EMAIL RECIPIENTS
+             RECIPIENTS
           --------------------------------------------- */
 
           recipients: {
@@ -1149,14 +883,10 @@ export async function POST(
           activities: {
             create: {
               action:
-                saveAsDraft
-                  ? "DOCUMENT_DRAFT_SAVED"
-                  : "DOCUMENT_CREATED",
+                "PUBLIC_QUOTATION_CREATED",
 
               description:
-                saveAsDraft
-                  ? `Draft saved by ${session.name}. Customer linked to ${masterCustomer.nameFirmName}. Reference: ${documentNumber}. GST type: ${gstType}.`
-                  : `Document created by ${session.name}. Customer linked to ${masterCustomer.nameFirmName}. Reference: ${documentNumber}. GST type: ${gstType}.`,
+                `Quotation generated from public quotation page. Reference: ${documentNumber}. Issuer: ${issuerInitials}. State: ${customerState}. GST type: ${gstType}.`,
             },
           },
         },
@@ -1168,80 +898,71 @@ export async function POST(
           documentNumber:
             true,
 
-          documentType:
-            true,
-
           issuerInitials:
-            true,
-
-          status:
-            true,
-
-          customerId:
             true,
 
           customerState:
             true,
 
-          gstType:
-            true,
-
-          gstPercent:
-            true,
-
-          cgstPercent:
-            true,
-
-          cgstAmount:
-            true,
-
-          sgstPercent:
-            true,
-
-          sgstAmount:
-            true,
-
-          igstPercent:
-            true,
-
-          igstAmount:
-            true,
-
-          gstAmount:
-            true,
-
-          grandTotal:
+          status:
             true,
         },
       });
 
     /* =====================================================
+       GENERATE PDF
+
+       The public workflow already has dedicated preview,
+       download and send routes, but keeping this response
+       maintains compatibility with any existing frontend
+       code expecting pdfBase64.
+    ===================================================== */
+
+    const {
+      buffer,
+      filename,
+    } =
+      await generateDocumentPdf(
+        document.id
+      );
+
+    /* =====================================================
        RESPONSE
     ===================================================== */
 
-    return NextResponse.json(
-      {
-        success:
-          true,
+    return NextResponse.json({
+      success:
+        true,
 
-        message:
-          saveAsDraft
-            ? "Draft saved successfully."
-            : "Document created successfully.",
+      message:
+        "Quotation generated successfully.",
 
-        data:
-          document,
+      data: {
+        id:
+          document.id,
+
+        documentNumber:
+          document.documentNumber,
+
+        issuerInitials:
+          document.issuerInitials,
+
+        customerState:
+          document.customerState,
+
+        filename,
+
+        pdfBase64:
+          buffer.toString(
+            "base64"
+          ),
       },
-      {
-        status:
-          201,
-      }
-    );
+    });
   } catch (
     error
   ) {
     console.error(
-      "CREATE DOCUMENT ERROR:",
+      "PUBLIC QUOTATION ERROR:",
       error
     );
 
@@ -1254,7 +975,7 @@ export async function POST(
           error instanceof
             Error
             ? error.message
-            : "Unable to create document.",
+            : "Unable to generate quotation.",
       },
       {
         status:

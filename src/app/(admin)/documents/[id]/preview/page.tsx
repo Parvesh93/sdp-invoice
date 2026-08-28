@@ -5,6 +5,8 @@ import { prisma } from "@/lib/prisma";
 
 import DocumentPreviewActions from "@/components/documents/document-preview-actions";
 
+export const dynamic = "force-dynamic";
+
 type PreviewPageProps = {
   params: Promise<{
     id: string;

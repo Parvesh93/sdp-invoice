@@ -12,6 +12,7 @@ export const SETTING_KEYS = {
   QUOTE_FOOTER: "quote_footer",
   SIGNATURE_IMAGE: "signature_image",
   REFERENCE_PREFIX: "reference_prefix",
+   BANK_DETAILS: "bank_details",
 } as const;
 
 export async function getSetting(
@@ -80,6 +81,11 @@ companyState:
       map.get(
         SETTING_KEYS.SIGNATURE_IMAGE
       ) ?? "",
+
+       bankDetails:
+    map.get(
+      SETTING_KEYS.BANK_DETAILS
+    ) ?? "",
 
     referencePrefix:
       map.get(

@@ -3,6 +3,8 @@ import Link from "next/link";
 import ProductForm from "@/components/products/product-form";
 import { prisma } from "@/lib/prisma";
 
+export const dynamic = "force-dynamic";
+
 export default async function NewProductPage() {
   const categories = await prisma.category.findMany({
     where: {

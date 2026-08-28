@@ -4,6 +4,8 @@ import { notFound } from "next/navigation";
 import CategoryForm from "@/components/categories/category-form";
 import { prisma } from "@/lib/prisma";
 
+export const dynamic = "force-dynamic";
+
 type EditCategoryPageProps = {
   params: Promise<{
     id: string;

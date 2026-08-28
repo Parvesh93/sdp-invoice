@@ -21,7 +21,7 @@ type PdfItem = {
 
   productDescription: string | null;
 
-  variantName: string | null;
+  variantName?: string | null;
 
   categoryName: string | null;
 
@@ -43,7 +43,11 @@ export type DocumentPdfProps = {
 
   documentDate: Date;
 
+  /* CUSTOMER */
+
   customerNameFirm: string;
+
+  customerEmail: string | null;
 
   customerPhone: string | null;
 
@@ -60,6 +64,8 @@ export type DocumentPdfProps = {
   addressLine2: string | null;
 
   addressLine3: string | null;
+
+  /* TOTALS */
 
   subtotal: string;
 
@@ -89,6 +95,8 @@ export type DocumentPdfProps = {
 
   additionalNotes: string | null;
 
+  /* DOCUMENT CONTENT */
+
   headerBanner?: string | null;
 
   footerBanner?: string | null;
@@ -96,6 +104,8 @@ export type DocumentPdfProps = {
   signatureImage?: string | null;
 
   quoteFooter?: string | null;
+
+  bankDetails?: string | null;
 
   termsContent?: string | null;
 
@@ -280,6 +290,32 @@ const styles =
         "#64748b",
     },
 
+    bankDetailsWrapper: {
+  marginTop: 12,
+
+  padding: 10,
+
+  borderWidth: 1,
+
+  borderColor:
+    "#cbd5e1",
+
+  backgroundColor:
+    "#f8fafc",
+},
+
+bankDetailsHeading: {
+  marginBottom: 6,
+
+  fontSize: 10,
+
+  fontFamily:
+    "Helvetica-Bold",
+
+  textDecoration:
+    "underline",
+},
+
     /* =====================================================
        FIRST PAGE
     ===================================================== */
@@ -305,8 +341,7 @@ const styles =
 
       marginTop: 2,
 
-      marginBottom:
-        14,
+      marginBottom: 14,
     },
 
     title: {
@@ -319,25 +354,29 @@ const styles =
         "underline",
     },
 
+    /* =====================================================
+       CUSTOMER
+    ===================================================== */
+
     customerBlock: {
-      marginBottom:
-        10,
+      marginBottom: 8,
     },
 
     customerName: {
-      marginBottom: 3,
-
       fontSize: 10,
+
+      lineHeight: 1.05,
 
       fontFamily:
         "Helvetica-Bold",
     },
 
-    normalLine: {
-      marginBottom: 2,
+    customerDetails: {
+      marginTop: 1,
 
-      lineHeight:
-        1.3,
+      fontSize: 9,
+
+      lineHeight: 1.08,
 
       color:
         "#334155",
@@ -351,16 +390,13 @@ const styles =
       fontFamily:
         "Helvetica-Bold",
 
-      lineHeight:
-        1.35,
+      lineHeight: 1.35,
     },
 
     intro: {
-      marginBottom:
-        12,
+      marginBottom: 12,
 
-      lineHeight:
-        1.45,
+      lineHeight: 1.45,
 
       color:
         "#334155",
@@ -491,8 +527,7 @@ const styles =
     },
 
     productMeta: {
-      marginTop:
-        2.5,
+      marginTop: 2.5,
 
       fontSize: 7,
 
@@ -503,8 +538,7 @@ const styles =
     descriptionText: {
       fontSize: 8,
 
-      lineHeight:
-        1.3,
+      lineHeight: 1.3,
 
       color:
         "#334155",
@@ -564,22 +598,53 @@ const styles =
         "Helvetica-Bold",
     },
 
+    /* =====================================================
+       TOTAL IN WORDS
+    ===================================================== */
+
     totalWords: {
       marginTop: 10,
 
-      fontSize: 8,
+      fontSize: 10,
 
-      lineHeight:
-        1.4,
+      lineHeight: 1.35,
+
+      fontFamily:
+        "Helvetica-Bold",
+
+      textDecoration:
+        "underline",
     },
 
-    note: {
-      marginTop: 8,
+    /* =====================================================
+       NOTE
+    ===================================================== */
 
-      fontSize: 8,
+    noteWrapper: {
+      marginTop: 10,
+    },
 
-      lineHeight:
-        1.4,
+    noteHeading: {
+      fontSize: 10,
+
+      lineHeight: 1.3,
+
+      fontFamily:
+        "Helvetica-Bold",
+
+      textDecoration:
+        "underline",
+
+      marginBottom: 4,
+    },
+
+    noteText: {
+      fontSize: 9,
+
+      lineHeight: 1.35,
+
+      color:
+        "#334155",
     },
 
     /* =====================================================
@@ -626,8 +691,7 @@ const styles =
       alignItems:
         "center",
 
-      marginBottom:
-        18,
+      marginBottom: 18,
     },
 
     pageTitle: {
@@ -654,9 +718,11 @@ const styles =
     ===================================================== */
 
     annexureMachine: {
-      marginBottom: 4,
+      marginBottom: 5,
 
       fontSize: 13,
+
+      lineHeight: 1.25,
 
       fontFamily:
         "Helvetica-Bold",
@@ -666,7 +732,7 @@ const styles =
     },
 
     annexureModel: {
-      marginBottom: 3,
+      marginBottom: 12,
 
       fontSize: 9,
 
@@ -675,18 +741,6 @@ const styles =
 
       color:
         "#475569",
-    },
-
-    annexureVariant: {
-      marginBottom: 14,
-
-      fontSize: 8,
-
-      textAlign:
-        "center",
-
-      color:
-        "#64748b",
     },
 
     sectionHeading: {
@@ -709,8 +763,7 @@ const styles =
 
       fontSize: 9,
 
-      lineHeight:
-        1.4,
+      lineHeight: 1.4,
 
       color:
         "#334155",
@@ -723,8 +776,7 @@ const styles =
 
       fontSize: 13,
 
-      lineHeight:
-        1.3,
+      lineHeight: 1.3,
 
       fontFamily:
         "Helvetica-Bold",
@@ -737,8 +789,7 @@ const styles =
 
       fontSize: 11,
 
-      lineHeight:
-        1.3,
+      lineHeight: 1.3,
 
       fontFamily:
         "Helvetica-Bold",
@@ -751,8 +802,7 @@ const styles =
 
       fontSize: 10,
 
-      lineHeight:
-        1.3,
+      lineHeight: 1.3,
 
       fontFamily:
         "Helvetica-Bold",
@@ -772,8 +822,7 @@ const styles =
 
       fontSize: 9,
 
-      lineHeight:
-        1.4,
+      lineHeight: 1.4,
     },
 
     listText: {
@@ -781,8 +830,7 @@ const styles =
 
       fontSize: 9,
 
-      lineHeight:
-        1.4,
+      lineHeight: 1.4,
 
       color:
         "#334155",
@@ -904,13 +952,36 @@ function getIntroText(
 }
 
 /* =========================================================
-   HTML ENTITY DECODER
+   HTML ENTITY / ENCODING CLEANUP
 ========================================================= */
 
 function decodeHtml(
   value: string
 ) {
   return value
+    /* Remove BOM */
+
+    .replace(
+      /\uFEFF/g,
+      ""
+    )
+
+    /* Remove stray ÿ */
+
+    .replace(
+      /\u00FF/g,
+      ""
+    )
+
+    /* Remove malformed UTF-8 BOM text */
+
+    .replace(
+      /ï»¿/g,
+      ""
+    )
+
+    /* HTML entities */
+
     .replace(
       /&nbsp;/gi,
       " "
@@ -1174,10 +1245,31 @@ function htmlToBlocks(
 
   const normalized =
     html
+
+      /*
+       * Clean encoding artifacts before parsing.
+       */
+
+      .replace(
+        /\uFEFF/g,
+        ""
+      )
+
+      .replace(
+        /\u00FF/g,
+        ""
+      )
+
+      .replace(
+        /ï»¿/g,
+        ""
+      )
+
       .replace(
         /\r\n/g,
         "\n"
       )
+
       .replace(
         /\r/g,
         "\n"
@@ -1835,6 +1927,9 @@ export default function DocumentPdf(
           style={
             styles.customerBlock
           }
+          wrap={
+            false
+          }
         >
           <Text
             style={
@@ -1847,101 +1942,58 @@ export default function DocumentPdf(
             }
           </Text>
 
-          {props.addressLine1 && (
-            <Text
-              style={
-                styles.normalLine
-              }
-            >
-              {
-                props.addressLine1
-              }
-            </Text>
-          )}
+          <Text
+            style={
+              styles.customerDetails
+            }
+          >
+            {[
+              props.addressLine1,
 
-          {props.addressLine2 && (
-            <Text
-              style={
-                styles.normalLine
-              }
-            >
-              {
-                props.addressLine2
-              }
-            </Text>
-          )}
+              props.addressLine2,
 
-          {props.addressLine3 && (
-            <Text
-              style={
-                styles.normalLine
-              }
-            >
-              {
-                props.addressLine3
-              }
-            </Text>
-          )}
+              props.addressLine3,
 
-          {(props.customerCity ||
-            props.customerState) && (
-            <Text
-              style={
-                styles.normalLine
-              }
-            >
-              {[
-                props.customerCity,
+              (
+                props.customerCity ||
+                props.customerState
+              )
+                ? [
+                    props.customerCity,
 
-                props.customerState,
-              ]
-                .filter(
-                  Boolean
-                )
-                .join(
-                  ", "
-                )}
-            </Text>
-          )}
+                    props.customerState,
+                  ]
+                    .filter(
+                      Boolean
+                    )
+                    .join(
+                      ", "
+                    )
+                : null,
 
-          {props.customerGST && (
-            <Text
-              style={
-                styles.normalLine
-              }
-            >
-              GST No:{" "}
-              {
-                props.customerGST
-              }
-            </Text>
-          )}
+              props.customerEmail
+                ? `Email: ${props.customerEmail}`
+                : null,
 
-          {props.customerPhone && (
-            <Text
-              style={
-                styles.normalLine
-              }
-            >
-              Phone:{" "}
-              {
-                props.customerPhone
-              }
-            </Text>
-          )}
+              props.customerGST
+                ? `GST No: ${props.customerGST}`
+                : null,
 
-          {props.customerWhatsapp && (
-            <Text
-              style={
-                styles.normalLine
-              }
-            >
-              WhatsApp:{" "}
-              {
-                props.customerWhatsapp
-              }
-            </Text>
-          )}
+              props.customerPhone
+                ? `Phone: ${props.customerPhone}`
+                : null,
+
+              props.customerWhatsapp
+                ? `WhatsApp: ${props.customerWhatsapp}`
+                : null,
+            ]
+              .filter(
+                Boolean
+              )
+              .join(
+                "\n"
+              )}
+          </Text>
         </View>
 
         {/* SUBJECT */}
@@ -1977,7 +2029,7 @@ export default function DocumentPdf(
             styles.table
           }
         >
-          {/* Header */}
+          {/* HEADER */}
 
           <View
             style={
@@ -2038,7 +2090,7 @@ export default function DocumentPdf(
             </Text>
           </View>
 
-          {/* Products */}
+          {/* PRODUCTS */}
 
           {props.items.map(
             (
@@ -2078,19 +2130,6 @@ export default function DocumentPdf(
                       Model:{" "}
                       {
                         item.productModel
-                      }
-                    </Text>
-                  )}
-
-                  {item.variantName && (
-                    <Text
-                      style={
-                        styles.productMeta
-                      }
-                    >
-                      Variant:{" "}
-                      {
-                        item.variantName
                       }
                     </Text>
                   )}
@@ -2326,22 +2365,42 @@ export default function DocumentPdf(
           </Text>
         )}
 
-        {/* NOTES */}
+        {/* =================================================
+            NOTES
+        ================================================= */}
 
         {props.additionalNotes && (
-          <Text
+          <View
             style={
-              styles.note
+              styles.noteWrapper
+            }
+            wrap={
+              false
             }
           >
-            Note:{" "}
-            {
-              props.additionalNotes
-            }
-          </Text>
+            <Text
+              style={
+                styles.noteHeading
+              }
+            >
+              Note
+            </Text>
+
+            <Text
+              style={
+                styles.noteText
+              }
+            >
+              {
+                props.additionalNotes
+              }
+            </Text>
+          </View>
         )}
 
-        {/* QUOTATION FOOTER */}
+        {/* =================================================
+            QUOTATION FOOTER
+        ================================================= */}
 
         {props.quoteFooter && (
           <View
@@ -2358,7 +2417,34 @@ export default function DocumentPdf(
           </View>
         )}
 
-        {/* SIGNATURE */}
+        {props.documentType ===
+  "ORDER_FORM" &&
+  props.bankDetails && (
+    <View
+      style={
+        styles.bankDetailsWrapper
+      }
+      wrap={false}
+    >
+      <Text
+        style={
+          styles.bankDetailsHeading
+        }
+      >
+        Bank Details for Transfer
+      </Text>
+
+      <RichPdfContent
+        html={
+          props.bankDetails
+        }
+      />
+    </View>
+  )}
+
+        {/* =================================================
+            SIGNATURE
+        ================================================= */}
 
         <View
           style={
@@ -2526,15 +2612,32 @@ export default function DocumentPdf(
                 />
               </View>
 
+              {/* =================================================
+                  CATEGORY + PRODUCT
+
+                  Example:
+                  LPM 9 Head BETA 1300mm
+              ================================================= */}
+
               <Text
                 style={
                   styles.annexureMachine
                 }
               >
-                {
-                  item.productName
-                }
+                {[
+                  item.categoryName,
+
+                  item.productName,
+                ]
+                  .filter(
+                    Boolean
+                  )
+                  .join(
+                    " "
+                  )}
               </Text>
+
+              {/* MODEL */}
 
               {item.productModel && (
                 <Text
@@ -2549,18 +2652,7 @@ export default function DocumentPdf(
                 </Text>
               )}
 
-              {item.variantName && (
-                <Text
-                  style={
-                    styles.annexureVariant
-                  }
-                >
-                  Variant:{" "}
-                  {
-                    item.variantName
-                  }
-                </Text>
-              )}
+              {/* MACHINE DESCRIPTION */}
 
               {item.productDescription && (
                 <>
@@ -2583,6 +2675,8 @@ export default function DocumentPdf(
                   </Text>
                 </>
               )}
+
+              {/* ANNEXURE CONTENT */}
 
               <RichPdfContent
                 html={

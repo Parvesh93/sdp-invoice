@@ -27,6 +27,8 @@ type Props = {
     signatureImage: string;
 
     referencePrefix: string;
+
+    bankDetails: string;
   };
 };
 
@@ -114,6 +116,13 @@ const [companyState, setCompanyState] =
     setSuccess,
   ] = useState("");
 
+  const [
+  bankDetails,
+  setBankDetails,
+] = useState(
+  initialSettings.bankDetails
+);
+
   async function saveSettings(
     event:
       FormEvent<HTMLFormElement>
@@ -149,6 +158,8 @@ const [companyState, setCompanyState] =
                 warranty,
 
                 quoteFooter,
+
+                bankDetails,
 
                 referencePrefix,
               }),
@@ -433,6 +444,27 @@ const [companyState, setCompanyState] =
           }
         />
       </SettingsSection>
+
+      {/* Bank Details */}
+
+<SettingsSection
+  title="Bank Details"
+  description="Displayed on Order Form PDFs for customer bank transfer. This does not appear on quotations."
+>
+  <RichTextEditor
+    value={
+      bankDetails
+    }
+    onChange={
+      setBankDetails
+    }
+  />
+
+  <p className="mt-3 text-xs text-slate-500">
+    Suggested details: Account Name, Bank Name, Account Number,
+    IFSC Code, Branch and SWIFT Code if required.
+  </p>
+</SettingsSection>
 
       {/* Signature */}
       <SettingsSection

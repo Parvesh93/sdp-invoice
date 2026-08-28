@@ -1,13 +1,22 @@
 import { prisma } from "@/lib/prisma";
-import { getSettings } from "@/lib/settings";
 
-function getFinancialYear(date = new Date()) {
+import {
+  getStateCode,
+} from "@/lib/india-states";
+
+function getFinancialYear(
+  date = new Date()
+) {
   const year =
     date.getFullYear();
 
   const month =
-    date.getMonth(); // Jan = 0
+    date.getMonth();
 
+  /*
+   * Indian FY:
+   * April -> March
+   */
   const startYear =
     month >= 3
       ? year
@@ -16,41 +25,70 @@ function getFinancialYear(date = new Date()) {
   const endYear =
     startYear + 1;
 
-  const endYearShort =
-    String(endYear).slice(
-      -2
-    );
-
   return {
     startYear,
     endYear,
 
     label:
-      `${startYear}-${endYearShort}`,
+      `${String(
+        startYear
+      ).slice(-2)}-${String(
+        endYear
+      ).slice(-2)}`,
   };
 }
 
-export async function generateDocumentNumber() {
-  const settings =
-    await getSettings();
+function cleanInitials(
+  value:
+    string
+) {
+  return value
+    .trim()
+    .toUpperCase()
+    .replace(
+      /[^A-Z]/g,
+      ""
+    );
+}
 
-  const prefix =
-    settings.referencePrefix?.trim() ||
-    "SDPM/RJ/OE";
+export async function generateDocumentNumber({
+  customerState,
+  issuerInitials,
+}: {
+  customerState:
+    string;
+
+  issuerInitials:
+    string;
+}) {
+  const stateCode =
+    getStateCode(
+      customerState
+    );
+
+  if (!stateCode) {
+    throw new Error(
+      "Please select a valid Indian state."
+    );
+  }
+
+  const initials =
+    cleanInitials(
+      issuerInitials
+    );
+
+  if (!initials) {
+    throw new Error(
+      "Issuer initials are required."
+    );
+  }
 
   const financialYear =
     getFinancialYear();
 
   const basePrefix =
-    `${prefix}/${financialYear.label}/`;
+    `SDPM/${stateCode}/${financialYear.label}/${initials}/`;
 
-  /*
-   * Financial year:
-   *
-   * 01-Apr-YYYY
-   * to
-   * 01-Apr-(YYYY + 1)
-   */
   const financialYearStart =
     new Date(
       financialYear.startYear,
@@ -74,24 +112,8 @@ export async function generateDocumentNumber() {
     );
 
   /*
-   * IMPORTANT:
-   *
-   * Previously this used:
-   *
-   * documentNumber: {
-   *   startsWith: basePrefix
-   * }
-   *
-   * Prisma converts startsWith into SQL LIKE.
-   *
-   * On Hostinger MariaDB this caused:
-   *
-   * Illegal mix of collations
-   * utf8mb4_unicode_ci / utf8mb4_bin
-   *
-   * We therefore filter the financial year
-   * using DateTime fields in SQL and perform
-   * the prefix check in JavaScript.
+   * Avoid SQL startsWith because of the
+   * MariaDB collation issue we encountered.
    */
   const documents =
     await prisma.document.findMany({
@@ -111,56 +133,63 @@ export async function generateDocumentNumber() {
       },
 
       orderBy: {
-        id: "desc",
+        id:
+          "desc",
       },
     });
 
   /*
-   * Find the latest document using the
-   * currently configured reference prefix.
+   * Global FY sequence:
+   *
+   * SDPM/RJ/26-27/PT/001
+   * SDPM/AP/26-27/AS/002
+   * SDPM/RJ/26-27/PT/003
+   *
+   * Sequence does not reset by state/issuer.
    */
-  const latestDocument =
-    documents.find(
-      (document) =>
-        document.documentNumber.startsWith(
-          basePrefix
-        )
-    );
+  let highestSequence =
+    0;
 
-  let nextSequence =
-    1;
-
-  if (
-    latestDocument
+  for (
+    const document of
+    documents
   ) {
-    const lastPart =
-      latestDocument
-        .documentNumber
-        .split("/")
-        .pop();
+    const parts =
+      document.documentNumber.split(
+        "/"
+      );
 
-    const lastSequence =
+    const lastPart =
+      parts[
+        parts.length - 1
+      ];
+
+    const sequence =
       Number(
         lastPart
       );
 
     if (
       Number.isInteger(
-        lastSequence
+        sequence
       ) &&
-      lastSequence > 0
+      sequence >
+        highestSequence
     ) {
-      nextSequence =
-        lastSequence +
-        1;
+      highestSequence =
+        sequence;
     }
   }
+
+  const nextSequence =
+    highestSequence +
+    1;
 
   const paddedSequence =
     String(
       nextSequence
     ).padStart(
-      4,
+      3,
       "0"
     );
 

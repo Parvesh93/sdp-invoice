@@ -95,6 +95,17 @@ saveSetting(
   "text"
 ),
 
+saveSetting(
+  SETTING_KEYS.BANK_DETAILS,
+
+  String(
+    body.bankDetails ??
+      ""
+  ),
+
+  "editor"
+),
+
       saveSetting(
         SETTING_KEYS.TERMS,
         String(

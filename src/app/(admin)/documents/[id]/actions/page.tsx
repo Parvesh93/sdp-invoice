@@ -5,6 +5,8 @@ import { prisma } from "@/lib/prisma";
 import DocumentSendForm from "@/components/documents/document-send-form";
 import { formatIndianCurrency } from "@/lib/currency";
 
+export const dynamic = "force-dynamic";
+
 type PageProps = {
   params: Promise<{
     id: string;

@@ -8,6 +8,10 @@ import {
 
 import { useRouter } from "next/navigation";
 
+import {
+  INDIA_STATES,
+} from "@/lib/india-states";
+
 /* =========================================================
    TYPES
 ========================================================= */
@@ -21,46 +25,26 @@ type Category = {
   name: string;
 };
 
-type ProductVariant = {
-  id: number;
-  name: string;
-};
-
 type Product = {
   id: number;
   name: string;
-
   model: string | null;
   description: string | null;
-
   categoryId: number;
-
   standardPrice: string;
-
-  variants: ProductVariant[];
 };
 
 type CustomerOption = {
   id: number;
-
   nameFirmName: string;
-
   email: string | null;
-
   phone: string | null;
-
   whatsapp: string | null;
-
   gstNumber: string | null;
-
   city: string | null;
-
   state: string | null;
-
   addressLine1: string | null;
-
   addressLine2: string | null;
-
   addressLine3: string | null;
 };
 
@@ -71,27 +55,19 @@ type ExistingDocument = {
     | "QUOTATION"
     | "ORDER_FORM";
 
+  issuerInitials: string;
+
   customer: {
     nameFirmName: string;
-
     email: string;
-
     cc: string;
-
     phone: string;
-
     whatsapp: string;
-
     gstNumber: string;
-
     city: string;
-
     state: string;
-
     addressLine1: string;
-
     addressLine2: string;
-
     addressLine3: string;
   };
 
@@ -105,49 +81,34 @@ type ExistingDocument = {
 
   items: {
     productId: number;
-
     categoryId: number;
-
-    variantId:
-      | number
-      | null;
-
     standardPrice: string;
-
     priceOverride: string;
-
     quantity: number;
   }[];
 };
 
 type ProductRow = {
   categoryId: string;
-
   productId: string;
-
-  variantId: string;
-
   standardPrice: string;
-
   priceOverride: string;
-
   quantity: number;
 };
 
 type Props = {
   categories: Category[];
-
   products: Product[];
-
   customers?: CustomerOption[];
-
   document?: ExistingDocument;
 
   companyState: string;
-
   defaultGstPercent: string;
-
   defaultGstType: string;
+
+  publicMode?: boolean;
+  submitEndpoint?: string;
+  previewBasePath?: string;
 };
 
 /* =========================================================
@@ -157,15 +118,9 @@ type Props = {
 function createEmptyRow(): ProductRow {
   return {
     categoryId: "",
-
     productId: "",
-
-    variantId: "",
-
     standardPrice: "",
-
     priceOverride: "",
-
     quantity: 1,
   };
 }
@@ -177,11 +132,19 @@ function formatCurrency(
     "en-IN",
     {
       style: "currency",
-
       currency: "INR",
-
       minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }
+  ).format(value);
+}
 
+function formatPercent(
+  value: number
+) {
+  return new Intl.NumberFormat(
+    "en-IN",
+    {
       maximumFractionDigits: 2,
     }
   ).format(value);
@@ -198,7 +161,10 @@ function normalizeState(
   )
     .trim()
     .toLowerCase()
-    .replace(/\s+/g, " ");
+    .replace(
+      /\s+/g,
+      " "
+    );
 }
 
 function normalizeGstType(
@@ -242,10 +208,6 @@ function determineGstType({
       companyState
     );
 
-  /*
-   * If both states are available,
-   * state comparison is authoritative.
-   */
   if (
     normalizedCustomerState &&
     normalizedCompanyState
@@ -256,13 +218,25 @@ function determineGstType({
       : "IGST";
   }
 
-  /*
-   * If state information is incomplete,
-   * use the default configured in Settings.
-   */
   return normalizeGstType(
     fallback
   );
+}
+
+function cleanIssuerInitials(
+  value: string
+) {
+  return value
+    .trim()
+    .toUpperCase()
+    .replace(
+      /[^A-Z]/g,
+      ""
+    )
+    .slice(
+      0,
+      4
+    );
 }
 
 /* =========================================================
@@ -271,18 +245,16 @@ function determineGstType({
 
 export default function DocumentForm({
   categories,
-
   products,
-
   customers = [],
-
   document,
-
   companyState,
-
   defaultGstPercent,
-
   defaultGstType,
+
+  publicMode = false,
+  submitEndpoint,
+  previewBasePath = "/documents",
 }: Props) {
   const router =
     useRouter();
@@ -305,6 +277,18 @@ export default function DocumentForm({
   );
 
   /* =======================================================
+     ISSUER INITIALS
+  ======================================================= */
+
+  const [
+    issuerInitials,
+    setIssuerInitials,
+  ] = useState(
+    document?.issuerInitials ??
+      ""
+  );
+
+  /* =======================================================
      SUBMIT MODE
   ======================================================= */
 
@@ -313,16 +297,20 @@ export default function DocumentForm({
     setSubmitMode,
   ] = useState<
     "draft" | "preview"
-  >("preview");
+  >(
+    "preview"
+  );
 
   /* =======================================================
-     CUSTOMER MASTER SELECTION
+     EXISTING CUSTOMER
   ======================================================= */
 
   const [
     selectedCustomerId,
     setSelectedCustomerId,
-  ] = useState("");
+  ] = useState(
+    ""
+  );
 
   /* =======================================================
      CUSTOMER SNAPSHOT
@@ -334,47 +322,58 @@ export default function DocumentForm({
   ] = useState({
     nameFirmName:
       document?.customer
-        .nameFirmName ?? "",
+        .nameFirmName ??
+      "",
 
     email:
       document?.customer
-        .email ?? "",
+        .email ??
+      "",
 
     cc:
       document?.customer
-        .cc ?? "",
+        .cc ??
+      "",
 
     phone:
       document?.customer
-        .phone ?? "",
+        .phone ??
+      "",
 
     whatsapp:
       document?.customer
-        .whatsapp ?? "",
+        .whatsapp ??
+      "",
 
     gstNumber:
       document?.customer
-        .gstNumber ?? "",
+        .gstNumber ??
+      "",
 
     city:
       document?.customer
-        .city ?? "",
+        .city ??
+      "",
 
     state:
       document?.customer
-        .state ?? "",
+        .state ??
+      "",
 
     addressLine1:
       document?.customer
-        .addressLine1 ?? "",
+        .addressLine1 ??
+      "",
 
     addressLine2:
       document?.customer
-        .addressLine2 ?? "",
+        .addressLine2 ??
+      "",
 
     addressLine3:
       document?.customer
-        .addressLine3 ?? "",
+        .addressLine3 ??
+      "",
   });
 
   /* =======================================================
@@ -386,19 +385,17 @@ export default function DocumentForm({
     setRows,
   ] =
     useState<ProductRow[]>(
-      document?.items?.length
+      document?.items
+        ?.length
         ? document.items.map(
-            (item) => ({
+            (
+              item
+            ) => ({
               categoryId:
                 item.categoryId.toString(),
 
               productId:
                 item.productId.toString(),
-
-              variantId:
-                item.variantId
-                  ? item.variantId.toString()
-                  : "",
 
               standardPrice:
                 item.standardPrice,
@@ -419,22 +416,15 @@ export default function DocumentForm({
      GST
   ======================================================= */
 
-  const [
-    gstPercent,
-    setGstPercent,
-  ] = useState(
+  const gstPercent =
     Number(
       document?.gstPercent ??
         defaultGstPercent ??
         18
-    )
-  );
+    );
 
-  /*
-   * GST Type is calculated automatically
-   * from company state vs customer state.
-   */
-  const gstType: GstType =
+  const gstType:
+    GstType =
     determineGstType({
       customerState:
         customer.state,
@@ -445,6 +435,10 @@ export default function DocumentForm({
         document?.gstType ??
         defaultGstType,
     });
+
+  /* =======================================================
+     NOTES
+  ======================================================= */
 
   const [
     additionalNotes,
@@ -461,12 +455,16 @@ export default function DocumentForm({
   const [
     loading,
     setLoading,
-  ] = useState(false);
+  ] = useState(
+    false
+  );
 
   const [
     error,
     setError,
-  ] = useState("");
+  ] = useState(
+    ""
+  );
 
   /* =======================================================
      CUSTOMER HELPERS
@@ -479,7 +477,9 @@ export default function DocumentForm({
     value: string
   ) {
     setCustomer(
-      (current) => ({
+      (
+        current
+      ) => ({
         ...current,
 
         [field]:
@@ -489,26 +489,33 @@ export default function DocumentForm({
   }
 
   function handleExistingCustomerChange(
-    customerId: string
+    customerId:
+      string
   ) {
     setSelectedCustomerId(
       customerId
     );
 
-    if (!customerId) {
+    if (
+      !customerId
+    ) {
       return;
     }
 
     const selected =
       customers.find(
-        (item) =>
+        (
+          item
+        ) =>
           item.id ===
           Number(
             customerId
           )
       );
 
-    if (!selected) {
+    if (
+      !selected
+    ) {
       return;
     }
 
@@ -520,7 +527,8 @@ export default function DocumentForm({
         selected.email ??
         "",
 
-      cc: "",
+      cc:
+        "",
 
       phone:
         selected.phone ??
@@ -562,27 +570,38 @@ export default function DocumentForm({
     );
 
     setCustomer({
-      nameFirmName: "",
+      nameFirmName:
+        "",
 
-      email: "",
+      email:
+        "",
 
-      cc: "",
+      cc:
+        "",
 
-      phone: "",
+      phone:
+        "",
 
-      whatsapp: "",
+      whatsapp:
+        "",
 
-      gstNumber: "",
+      gstNumber:
+        "",
 
-      city: "",
+      city:
+        "",
 
-      state: "",
+      state:
+        "",
 
-      addressLine1: "",
+      addressLine1:
+        "",
 
-      addressLine2: "",
+      addressLine2:
+        "",
 
-      addressLine3: "",
+      addressLine3:
+        "",
     });
   }
 
@@ -591,7 +610,8 @@ export default function DocumentForm({
   ======================================================= */
 
   function updateRow(
-    index: number,
+    index:
+      number,
 
     field:
       keyof ProductRow,
@@ -601,12 +621,20 @@ export default function DocumentForm({
       | number
   ) {
     setRows(
-      (current) => {
+      (
+        current
+      ) => {
         const copy =
-          [...current];
+          [
+            ...current,
+          ];
 
-        copy[index] = {
-          ...copy[index],
+        copy[
+          index
+        ] = {
+          ...copy[
+            index
+          ],
 
           [field]:
             value,
@@ -618,24 +646,31 @@ export default function DocumentForm({
   }
 
   function handleCategoryChange(
-    index: number,
+    index:
+      number,
 
-    categoryId: string
+    categoryId:
+      string
   ) {
     setRows(
-      (current) => {
+      (
+        current
+      ) => {
         const copy =
-          [...current];
+          [
+            ...current,
+          ];
 
-        copy[index] = {
-          ...copy[index],
+        copy[
+          index
+        ] = {
+          ...copy[
+            index
+          ],
 
           categoryId,
 
           productId:
-            "",
-
-          variantId:
             "",
 
           standardPrice:
@@ -651,13 +686,17 @@ export default function DocumentForm({
   }
 
   function handleProductChange(
-    index: number,
+    index:
+      number,
 
-    productId: string
+    productId:
+      string
   ) {
     const selectedProduct =
       products.find(
-        (product) =>
+        (
+          product
+        ) =>
           product.id ===
           Number(
             productId
@@ -665,17 +704,22 @@ export default function DocumentForm({
       );
 
     setRows(
-      (current) => {
+      (
+        current
+      ) => {
         const copy =
-          [...current];
+          [
+            ...current,
+          ];
 
-        copy[index] = {
-          ...copy[index],
+        copy[
+          index
+        ] = {
+          ...copy[
+            index
+          ],
 
           productId,
-
-          variantId:
-            "",
 
           standardPrice:
             selectedProduct
@@ -693,7 +737,9 @@ export default function DocumentForm({
 
   function addProductRow() {
     setRows(
-      (current) => [
+      (
+        current
+      ) => [
         ...current,
 
         createEmptyRow(),
@@ -702,7 +748,8 @@ export default function DocumentForm({
   }
 
   function removeProductRow(
-    index: number
+    index:
+      number
   ) {
     if (
       rows.length <=
@@ -712,7 +759,9 @@ export default function DocumentForm({
     }
 
     setRows(
-      (current) =>
+      (
+        current
+      ) =>
         current.filter(
           (
             _,
@@ -725,7 +774,8 @@ export default function DocumentForm({
   }
 
   function getFinalPrice(
-    row: ProductRow
+    row:
+      ProductRow
   ) {
     if (
       row.priceOverride !==
@@ -752,7 +802,8 @@ export default function DocumentForm({
   }
 
   function getLineTotal(
-    row: ProductRow
+    row:
+      ProductRow
   ) {
     return (
       getFinalPrice(
@@ -770,63 +821,51 @@ export default function DocumentForm({
   ======================================================= */
 
   const subtotal =
-    useMemo(() => {
-      return rows.reduce(
-        (
-          sum,
-          row
-        ) =>
-          sum +
-          getLineTotal(
+    useMemo(
+      () =>
+        rows.reduce(
+          (
+            sum,
             row
-          ),
+          ) =>
+            sum +
+            getLineTotal(
+              row
+            ),
 
-        0
-      );
-    }, [
-      rows,
-    ]);
+          0
+        ),
 
-  /*
-   * Total GST
-   */
+      [
+        rows,
+      ]
+    );
+
   const gstAmount =
     subtotal *
     (
-      Number(
-        gstPercent
-      ) /
+      gstPercent /
       100
     );
 
-  /*
-   * CGST + SGST breakup
-   */
   const cgstPercent =
     gstType ===
     "CGST_SGST"
-      ? Number(
-          gstPercent
-        ) / 2
+      ? gstPercent /
+        2
       : 0;
 
   const sgstPercent =
     gstType ===
     "CGST_SGST"
-      ? Number(
-          gstPercent
-        ) / 2
+      ? gstPercent /
+        2
       : 0;
 
-  /*
-   * IGST
-   */
   const igstPercent =
     gstType ===
     "IGST"
-      ? Number(
-          gstPercent
-        )
+      ? gstPercent
       : 0;
 
   const cgstAmount =
@@ -874,6 +913,23 @@ export default function DocumentForm({
 
     try {
       /* ---------------------------------------
+         ISSUER
+      --------------------------------------- */
+
+      const cleanedIssuerInitials =
+        cleanIssuerInitials(
+          issuerInitials
+        );
+
+      if (
+        !cleanedIssuerInitials
+      ) {
+        throw new Error(
+          "Issuer initials are required."
+        );
+      }
+
+      /* ---------------------------------------
          CUSTOMER
       --------------------------------------- */
 
@@ -887,13 +943,25 @@ export default function DocumentForm({
         );
       }
 
+      if (
+        !customer
+          .state
+          .trim()
+      ) {
+        throw new Error(
+          "Please select customer state."
+        );
+      }
+
       /* ---------------------------------------
-         ITEMS
+         PRODUCTS
       --------------------------------------- */
 
       const validRows =
         rows.filter(
-          (row) =>
+          (
+            row
+          ) =>
             row.productId !==
             ""
         );
@@ -908,43 +976,16 @@ export default function DocumentForm({
       }
 
       /* ---------------------------------------
-         VARIANTS
-      --------------------------------------- */
-
-      for (
-        const row of
-        validRows
-      ) {
-        const product =
-          products.find(
-            (product) =>
-              product.id ===
-              Number(
-                row.productId
-              )
-          );
-
-        if (
-          product &&
-          product.variants
-            .length >
-            0 &&
-          !row.variantId
-        ) {
-          throw new Error(
-            `Please select a variant for ${product.name}.`
-          );
-        }
-      }
-
-      /* ---------------------------------------
          API
       --------------------------------------- */
 
       const url =
-        isEditing
-          ? `/api/documents/${document!.id}`
-          : "/api/documents";
+        submitEndpoint ??
+        (
+          isEditing
+            ? `/api/documents/${document!.id}`
+            : "/api/documents"
+        );
 
       const response =
         await fetch(
@@ -964,6 +1005,9 @@ export default function DocumentForm({
               JSON.stringify({
                 documentType,
 
+                issuerInitials:
+                  cleanedIssuerInitials,
+
                 customer,
 
                 selectedCustomerId:
@@ -973,12 +1017,6 @@ export default function DocumentForm({
                       )
                     : null,
 
-                /*
-                 * GST
-                 *
-                 * Backend must calculate
-                 * amounts again before saving.
-                 */
                 gstType,
 
                 gstPercent,
@@ -998,13 +1036,6 @@ export default function DocumentForm({
                         Number(
                           row.productId
                         ),
-
-                      variantId:
-                        row.variantId
-                          ? Number(
-                              row.variantId
-                            )
-                          : null,
 
                       quantity:
                         Number(
@@ -1076,12 +1107,14 @@ export default function DocumentForm({
         );
       } else {
         router.push(
-          `/documents/${documentId}/preview`
+          `${previewBasePath}/${documentId}/preview`
         );
       }
 
       router.refresh();
-    } catch (error) {
+    } catch (
+      error
+    ) {
       setError(
         error instanceof
           Error
@@ -1115,47 +1148,100 @@ export default function DocumentForm({
       )}
 
       {/* =================================================
-          1. DOCUMENT TYPE
+          1. DOCUMENT DETAILS
       ================================================= */}
 
       <section className="rounded-xl border border-slate-200 bg-white p-6">
         <h2 className="text-lg font-semibold text-slate-900">
-          1. Document Type
+          1. Document Details
         </h2>
 
-        <div className="mt-4 flex gap-3">
-          <DocumentTypeButton
-            active={
-              documentType ===
-              "QUOTATION"
-            }
-            onClick={() =>
-              setDocumentType(
-                "QUOTATION"
-              )
-            }
-          >
-            Quotation
-          </DocumentTypeButton>
+        <p className="mt-1 text-sm text-slate-500">
+          Select the document type and enter the initials of
+          the person issuing the document.
+        </p>
 
-          <DocumentTypeButton
-            active={
-              documentType ===
-              "ORDER_FORM"
-            }
-            onClick={() =>
-              setDocumentType(
-                "ORDER_FORM"
-              )
-            }
-          >
-            Order Form
-          </DocumentTypeButton>
+        <div className="mt-5 grid gap-6 md:grid-cols-2">
+          {/* Document Type */}
+
+          <div>
+            <Label>
+              Document Type
+            </Label>
+
+            <div className="flex flex-wrap gap-3">
+              <DocumentTypeButton
+                active={
+                  documentType ===
+                  "QUOTATION"
+                }
+                onClick={() =>
+                  setDocumentType(
+                    "QUOTATION"
+                  )
+                }
+              >
+                Quotation
+              </DocumentTypeButton>
+
+              {!publicMode && (
+                <DocumentTypeButton
+                  active={
+                    documentType ===
+                    "ORDER_FORM"
+                  }
+                  onClick={() =>
+                    setDocumentType(
+                      "ORDER_FORM"
+                    )
+                  }
+                >
+                  Order Form
+                </DocumentTypeButton>
+              )}
+            </div>
+          </div>
+
+          {/* Issuer Initials */}
+
+          <div>
+            <Label>
+              Issuer Initials *
+            </Label>
+
+            <input
+              type="text"
+              value={
+                issuerInitials
+              }
+              required
+              maxLength={
+                4
+              }
+              placeholder="e.g. PT"
+              autoComplete="off"
+              onChange={(
+                event
+              ) =>
+                setIssuerInitials(
+                  cleanIssuerInitials(
+                    event.target.value
+                  )
+                )
+              }
+              className="w-full rounded-lg border border-slate-300 px-4 py-3 uppercase outline-none transition focus:border-slate-900 focus:ring-1 focus:ring-slate-900"
+            />
+
+            <p className="mt-2 text-xs text-slate-500">
+              Used in the reference number, for example:
+              SDPM/RJ/26-27/PT/001
+            </p>
+          </div>
         </div>
       </section>
 
       {/* =================================================
-          2. CUSTOMER
+          2. CUSTOMER DETAILS
       ================================================= */}
 
       <section className="rounded-xl border border-slate-200 bg-white p-6">
@@ -1169,7 +1255,7 @@ export default function DocumentForm({
           </p>
         </div>
 
-        {/* Existing Customer Selector */}
+        {/* Existing Customer */}
 
         <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-5">
           <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-start">
@@ -1186,8 +1272,7 @@ export default function DocumentForm({
                   event
                 ) =>
                   handleExistingCustomerChange(
-                    event.target
-                      .value
+                    event.target.value
                   )
                 }
                 className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 outline-none transition focus:border-slate-900 focus:ring-1 focus:ring-slate-900"
@@ -1253,13 +1338,12 @@ export default function DocumentForm({
             !isEditing && (
               <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">
                 If this is a new customer, they will automatically be
-                added to the Customer directory when the document is
-                saved.
+                added to the Customer directory when the document is saved.
               </div>
             )}
         </div>
 
-        {/* Customer fields */}
+        {/* Customer Fields */}
 
         <div className="mt-6 grid gap-5 md:grid-cols-2">
           <InputField
@@ -1370,20 +1454,50 @@ export default function DocumentForm({
             }
           />
 
-          <InputField
-            label="State"
-            value={
-              customer.state
-            }
-            onChange={(
-              value
-            ) =>
-              updateCustomer(
-                "state",
-                value
-              )
-            }
-          />
+          {/* State Dropdown */}
+
+          <div>
+            <Label>
+              State *
+            </Label>
+
+            <select
+              value={
+                customer.state
+              }
+              required
+              onChange={(
+                event
+              ) =>
+                updateCustomer(
+                  "state",
+                  event.target.value
+                )
+              }
+              className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 outline-none transition focus:border-slate-900 focus:ring-1 focus:ring-slate-900"
+            >
+              <option value="">
+                Select State
+              </option>
+
+              {INDIA_STATES.map(
+                (
+                  state
+                ) => (
+                  <option
+                    key={
+                      state.code
+                    }
+                    value={
+                      state.name
+                    }
+                  >
+                    {state.name} ({state.code})
+                  </option>
+                )
+              )}
+            </select>
+          </div>
 
           <InputField
             label="Address Line 1"
@@ -1431,7 +1545,7 @@ export default function DocumentForm({
           />
         </div>
 
-        {/* Automatic GST status */}
+        {/* Automatic GST Status */}
 
         <div
           className={`mt-6 rounded-lg border px-4 py-3 text-sm ${
@@ -1453,10 +1567,12 @@ export default function DocumentForm({
             Company State:{" "}
             {companyState ||
               "Not configured"}
+
             {" • "}
+
             Customer State:{" "}
             {customer.state ||
-              "Not entered"}
+              "Not selected"}
           </div>
         </div>
       </section>
@@ -1471,7 +1587,7 @@ export default function DocumentForm({
         </h2>
 
         <p className="mt-1 text-sm text-slate-500">
-          Select category, product and variant. Override pricing only when required.
+          Select category and product. Override pricing only when required.
         </p>
 
         <div className="mt-6 space-y-4">
@@ -1502,11 +1618,6 @@ export default function DocumentForm({
                     )
                 );
 
-              const variants =
-                selectedProduct
-                  ?.variants ??
-                [];
-
               return (
                 <div
                   key={
@@ -1514,7 +1625,7 @@ export default function DocumentForm({
                   }
                   className="rounded-lg border border-slate-200 bg-slate-50 p-4"
                 >
-                  <div className="grid gap-4 xl:grid-cols-7">
+                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
                     <div>
                       <Label>
                         Category
@@ -1530,10 +1641,7 @@ export default function DocumentForm({
                         ) =>
                           handleCategoryChange(
                             index,
-
-                            event
-                              .target
-                              .value
+                            event.target.value
                           )
                         }
                         className="w-full rounded-lg border border-slate-300 bg-white px-3 py-3"
@@ -1581,10 +1689,7 @@ export default function DocumentForm({
                         ) =>
                           handleProductChange(
                             index,
-
-                            event
-                              .target
-                              .value
+                            event.target.value
                           )
                         }
                         className="w-full rounded-lg border border-slate-300 bg-white px-3 py-3 disabled:bg-slate-100"
@@ -1612,67 +1717,6 @@ export default function DocumentForm({
                               {product.model
                                 ? ` - ${product.model}`
                                 : ""}
-                            </option>
-                          )
-                        )}
-                      </select>
-                    </div>
-
-                    <div>
-                      <Label>
-                        Variant
-                      </Label>
-
-                      <select
-                        value={
-                          row.variantId
-                        }
-                        disabled={
-                          !row.productId ||
-                          variants.length ===
-                            0
-                        }
-                        required={
-                          variants.length >
-                          0
-                        }
-                        onChange={(
-                          event
-                        ) =>
-                          updateRow(
-                            index,
-
-                            "variantId",
-
-                            event
-                              .target
-                              .value
-                          )
-                        }
-                        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-3 disabled:bg-slate-100"
-                      >
-                        <option value="">
-                          {variants.length ===
-                          0
-                            ? "No Variant"
-                            : "Select Variant"}
-                        </option>
-
-                        {variants.map(
-                          (
-                            variant
-                          ) => (
-                            <option
-                              key={
-                                variant.id
-                              }
-                              value={
-                                variant.id
-                              }
-                            >
-                              {
-                                variant.name
-                              }
                             </option>
                           )
                         )}
@@ -1717,12 +1761,8 @@ export default function DocumentForm({
                         ) =>
                           updateRow(
                             index,
-
                             "priceOverride",
-
-                            event
-                              .target
-                              .value
+                            event.target.value
                           )
                         }
                         placeholder="Optional"
@@ -1746,16 +1786,11 @@ export default function DocumentForm({
                         ) =>
                           updateRow(
                             index,
-
                             "quantity",
-
                             Math.max(
                               1,
-
                               Number(
-                                event
-                                  .target
-                                  .value
+                                event.target.value
                               )
                             )
                           )
@@ -1858,7 +1893,9 @@ export default function DocumentForm({
             </Label>
 
             <textarea
-              rows={6}
+              rows={
+                6
+              }
               value={
                 additionalNotes
               }
@@ -1866,9 +1903,7 @@ export default function DocumentForm({
                 event
               ) =>
                 setAdditionalNotes(
-                  event
-                    .target
-                    .value
+                  event.target.value
                 )
               }
               placeholder="Optional notes..."
@@ -1887,31 +1922,20 @@ export default function DocumentForm({
 
               <div className="flex items-center justify-between gap-4">
                 <span className="text-sm text-slate-500">
-                  GST %
+                  GST Rate
                 </span>
 
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.01"
-                  value={
+                <strong className="text-sm text-slate-900">
+                  {formatPercent(
                     gstPercent
-                  }
-                  onChange={(
-                    event
-                  ) =>
-                    setGstPercent(
-                      Number(
-                        event
-                          .target
-                          .value
-                      )
-                    )
-                  }
-                  className="w-24 rounded-lg border border-slate-300 bg-white px-3 py-2 text-right"
-                />
+                  )}
+                  %
+                </strong>
               </div>
+
+              <p className="-mt-2 text-right text-xs text-slate-400">
+                GST rate is managed from Admin Settings.
+              </p>
 
               <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
                 <div className="text-xs uppercase tracking-wide text-slate-400">
@@ -1930,14 +1954,18 @@ export default function DocumentForm({
               "CGST_SGST" ? (
                 <>
                   <SummaryRow
-                    label={`CGST ${cgstPercent}%`}
+                    label={`CGST ${formatPercent(
+                      cgstPercent
+                    )}%`}
                     value={formatCurrency(
                       cgstAmount
                     )}
                   />
 
                   <SummaryRow
-                    label={`SGST ${sgstPercent}%`}
+                    label={`SGST ${formatPercent(
+                      sgstPercent
+                    )}%`}
                     value={formatCurrency(
                       sgstAmount
                     )}
@@ -1945,7 +1973,9 @@ export default function DocumentForm({
                 </>
               ) : (
                 <SummaryRow
-                  label={`IGST ${igstPercent}%`}
+                  label={`IGST ${formatPercent(
+                    igstPercent
+                  )}%`}
                   value={formatCurrency(
                     igstAmount
                   )}
@@ -1990,24 +2020,26 @@ export default function DocumentForm({
           </button>
         )}
 
-        <button
-          type="submit"
-          disabled={
-            loading
-          }
-          onClick={() =>
-            setSubmitMode(
+        {!publicMode && (
+          <button
+            type="submit"
+            disabled={
+              loading
+            }
+            onClick={() =>
+              setSubmitMode(
+                "draft"
+              )
+            }
+            className="rounded-lg border border-slate-300 bg-white px-5 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {loading &&
+            submitMode ===
               "draft"
-            )
-          }
-          className="rounded-lg border border-slate-300 bg-white px-5 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-        >
-          {loading &&
-          submitMode ===
-            "draft"
-            ? "Saving Draft..."
-            : "Save Draft"}
-        </button>
+              ? "Saving Draft..."
+              : "Save Draft"}
+          </button>
+        )}
 
         <button
           type="submit"
@@ -2019,7 +2051,7 @@ export default function DocumentForm({
               "preview"
             )
           }
-          className="rounded-lg bg-slate-950 px-6 py-3 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+          className="rounded-lg bg-slate-950 px-6 py-3 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {loading &&
           submitMode ===
@@ -2040,9 +2072,7 @@ export default function DocumentForm({
 
 function DocumentTypeButton({
   active,
-
   onClick,
-
   children,
 }: {
   active: boolean;
@@ -2088,18 +2118,14 @@ function Label({
 }
 
 /* =========================================================
-   INPUT
+   INPUT FIELD
 ========================================================= */
 
 function InputField({
   label,
-
   value,
-
   onChange,
-
   required = false,
-
   placeholder,
 }: {
   label: string;
@@ -2107,10 +2133,13 @@ function InputField({
   value: string;
 
   onChange:
-    (value: string) =>
-      void;
+    (
+      value:
+        string
+    ) => void;
 
-  required?: boolean;
+  required?:
+    boolean;
 
   placeholder?:
     string;
@@ -2135,9 +2164,7 @@ function InputField({
           event
         ) =>
           onChange(
-            event
-              .target
-              .value
+            event.target.value
           )
         }
         className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-900 focus:ring-1 focus:ring-slate-900"
@@ -2152,11 +2179,9 @@ function InputField({
 
 function SummaryRow({
   label,
-
   value,
 }: {
   label: string;
-
   value: string;
 }) {
   return (
@@ -2165,7 +2190,7 @@ function SummaryRow({
         {label}
       </span>
 
-      <strong className="text-right">
+      <strong className="text-right text-slate-900">
         {value}
       </strong>
     </div>

@@ -141,6 +141,8 @@ model Document {
   addressLine2     String?
   addressLine3     String?
 
+  issuerInitials String?
+
   subtotal Decimal @db.Decimal(12, 2)
 
   gstType    GstType @default(CGST_SGST)
@@ -171,6 +173,7 @@ model Document {
   warrantySnapshot       String? @db.LongText
   quoteFooterSnapshot    String? @db.LongText
   signatureImageSnapshot String?
+  bankDetailsSnapshot    String? @db.LongText
 
   approvedAt DateTime?
   sentAt     DateTime?

@@ -31,29 +31,39 @@ export default async function CreateDocumentPage() {
         isActive: true,
       },
 
+      // select: {
+      //   id: true,
+      //   name: true,
+      //   model: true,
+      //   description: true,
+      //   categoryId: true,
+      //   standardPrice: true,
+
+      //   variants: {
+      //     where: {
+      //       isActive: true,
+      //     },
+
+      //     select: {
+      //       id: true,
+      //       name: true,
+      //     },
+
+      //     orderBy: {
+      //       name: "asc",
+      //     },
+      //   },
+      // },
+
+
       select: {
-        id: true,
-        name: true,
-        model: true,
-        description: true,
-        categoryId: true,
-        standardPrice: true,
-
-        variants: {
-          where: {
-            isActive: true,
-          },
-
-          select: {
-            id: true,
-            name: true,
-          },
-
-          orderBy: {
-            name: "asc",
-          },
-        },
-      },
+  id: true,
+  name: true,
+  model: true,
+  description: true,
+  categoryId: true,
+  standardPrice: true,
+},
 
       orderBy: {
         name: "asc",
@@ -108,29 +118,26 @@ export default async function CreateDocumentPage() {
           settings.gstType
         }
         products={products.map(
-          (product) => ({
-            id:
-              product.id,
+  (product) => ({
+    id:
+      product.id,
 
-            name:
-              product.name,
+    name:
+      product.name,
 
-            model:
-              product.model,
+    model:
+      product.model,
 
-            description:
-              product.description,
+    description:
+      product.description,
 
-            categoryId:
-              product.categoryId,
+    categoryId:
+      product.categoryId,
 
-            standardPrice:
-              product.standardPrice.toString(),
-
-            variants:
-              product.variants,
-          })
-        )}
+    standardPrice:
+      product.standardPrice.toString(),
+  })
+)}
       />
     </div>
   );

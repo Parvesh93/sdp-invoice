@@ -6,6 +6,8 @@ import { prisma } from "@/lib/prisma";
 
 import CustomerForm from "@/components/customers/customer-form";
 
+export const dynamic = "force-dynamic";
+
 type Props = {
   params: Promise<{
     id: string;

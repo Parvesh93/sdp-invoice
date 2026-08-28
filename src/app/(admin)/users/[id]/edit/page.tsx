@@ -8,6 +8,8 @@ import { getSession } from "@/lib/auth";
 
 import UserForm from "@/components/users/user-form";
 
+export const dynamic = "force-dynamic";
+
 type Props = {
   params: Promise<{
     id: string;

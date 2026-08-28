@@ -58,6 +58,24 @@ function cleanUppercase(
   return cleaned || null;
 }
 
+function cleanIssuerInitials(
+  value: unknown
+) {
+  return String(
+    value ?? ""
+  )
+    .trim()
+    .toUpperCase()
+    .replace(
+      /[^A-Z]/g,
+      ""
+    )
+    .slice(
+      0,
+      4
+    );
+}
+
 /* =========================================================
    GST HELPERS
 ========================================================= */
@@ -73,7 +91,10 @@ function normalizeState(
   )
     .trim()
     .toLowerCase()
-    .replace(/\s+/g, " ");
+    .replace(
+      /\s+/g,
+      " "
+    );
 }
 
 function normalizeGstType(
@@ -82,7 +103,8 @@ function normalizeGstType(
     | null
     | undefined
 ): GstType {
-  return value === "IGST"
+  return value ===
+    "IGST"
     ? "IGST"
     : "CGST_SGST";
 }
@@ -117,10 +139,6 @@ function determineGstType({
       companyState
     );
 
-  /*
-   * If both states are available,
-   * the state comparison is authoritative.
-   */
   if (
     normalizedCustomerState &&
     normalizedCompanyState
@@ -131,10 +149,6 @@ function determineGstType({
       : "IGST";
   }
 
-  /*
-   * If either state is missing,
-   * fall back to Settings.
-   */
   return normalizeGstType(
     fallback
   );
@@ -149,9 +163,9 @@ export async function PUT(
   context: RouteContext
 ) {
   try {
-    /* =========================================
+    /* =====================================================
        AUTH
-    ========================================= */
+    ===================================================== */
 
     const session =
       await getSession();
@@ -160,7 +174,6 @@ export async function PUT(
       return NextResponse.json(
         {
           success: false,
-
           message:
             "Unauthorized.",
         },
@@ -170,9 +183,9 @@ export async function PUT(
       );
     }
 
-    /* =========================================
+    /* =====================================================
        DOCUMENT ID
-    ========================================= */
+    ===================================================== */
 
     const { id } =
       await context.params;
@@ -183,12 +196,12 @@ export async function PUT(
     if (
       !Number.isInteger(
         documentId
-      )
+      ) ||
+      documentId <= 0
     ) {
       return NextResponse.json(
         {
           success: false,
-
           message:
             "Invalid document ID.",
         },
@@ -198,9 +211,9 @@ export async function PUT(
       );
     }
 
-    /* =========================================
+    /* =====================================================
        EXISTING DOCUMENT
-    ========================================= */
+    ===================================================== */
 
     const existingDocument =
       await prisma.document.findUnique({
@@ -214,7 +227,6 @@ export async function PUT(
       return NextResponse.json(
         {
           success: false,
-
           message:
             "Document not found.",
         },
@@ -225,8 +237,10 @@ export async function PUT(
     }
 
     /*
-     * Once sent, preserve the final document.
+     * Once a document has been sent,
+     * it should remain immutable.
      */
+
     if (
       existingDocument.status ===
       "SENT"
@@ -234,7 +248,6 @@ export async function PUT(
       return NextResponse.json(
         {
           success: false,
-
           message:
             "Sent documents cannot be edited.",
         },
@@ -244,9 +257,9 @@ export async function PUT(
       );
     }
 
-    /* =========================================
-       REQUEST
-    ========================================= */
+    /* =====================================================
+       BODY / SETTINGS
+    ===================================================== */
 
     const body =
       await request.json();
@@ -264,9 +277,31 @@ export async function PUT(
         ? "ORDER_FORM"
         : "QUOTATION";
 
-    /* =========================================
+    /* =====================================================
+       ISSUER INITIALS
+    ===================================================== */
+
+    const issuerInitials =
+      cleanIssuerInitials(
+        body.issuerInitials
+      );
+
+    if (!issuerInitials) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Issuer initials are required.",
+        },
+        {
+          status: 422,
+        }
+      );
+    }
+
+    /* =====================================================
        CUSTOMER
-    ========================================= */
+    ===================================================== */
 
     const customer =
       body.customer ?? {};
@@ -281,7 +316,6 @@ export async function PUT(
       return NextResponse.json(
         {
           success: false,
-
           message:
             "Name / Firm Name is required.",
         },
@@ -316,6 +350,28 @@ export async function PUT(
         customer.state
       );
 
+    /*
+     * State is mandatory now because the state
+     * is part of the reference-number structure.
+     *
+     * IMPORTANT:
+     * The existing reference number is NOT regenerated
+     * when editing a document.
+     */
+
+    if (!customerState) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Customer state is required.",
+        },
+        {
+          status: 422,
+        }
+      );
+    }
+
     const customerAddressLine1 =
       cleanString(
         customer.addressLine1
@@ -330,10 +386,6 @@ export async function PUT(
       cleanString(
         customer.addressLine3
       );
-
-    /* =========================================
-       EMAILS
-    ========================================= */
 
     const toEmails =
       parseEmails(
@@ -351,9 +403,9 @@ export async function PUT(
         )
       );
 
-    /* =========================================
-       ITEMS
-    ========================================= */
+    /* =====================================================
+       PRODUCTS
+    ===================================================== */
 
     if (
       !Array.isArray(
@@ -365,7 +417,6 @@ export async function PUT(
       return NextResponse.json(
         {
           success: false,
-
           message:
             "At least one product is required.",
         },
@@ -377,10 +428,12 @@ export async function PUT(
 
     const productIds =
       body.items.map(
-        (item: {
-          productId:
-            number;
-        }) =>
+        (
+          item: {
+            productId:
+              number;
+          }
+        ) =>
           Number(
             item.productId
           )
@@ -389,7 +442,8 @@ export async function PUT(
     if (
       productIds.some(
         (
-          productId: number
+          productId:
+            number
         ) =>
           !Number.isInteger(
             productId
@@ -400,7 +454,6 @@ export async function PUT(
       return NextResponse.json(
         {
           success: false,
-
           message:
             "One or more selected products are invalid.",
         },
@@ -410,9 +463,9 @@ export async function PUT(
       );
     }
 
-    /* =========================================
+    /* =====================================================
        LOAD PRODUCTS
-    ========================================= */
+    ===================================================== */
 
     const products =
       await prisma.product.findMany({
@@ -426,16 +479,9 @@ export async function PUT(
         include: {
           category:
             true,
-
-          variants:
-            true,
         },
       });
 
-    /*
-     * Same product can appear multiple times,
-     * so compare against unique IDs.
-     */
     if (
       products.length !==
       new Set(
@@ -445,7 +491,6 @@ export async function PUT(
       return NextResponse.json(
         {
           success: false,
-
           message:
             "One or more selected products are invalid.",
         },
@@ -455,28 +500,26 @@ export async function PUT(
       );
     }
 
-    /* =========================================
+    /* =====================================================
        PREPARE ITEMS
-    ========================================= */
+    ===================================================== */
 
     const preparedItems =
       body.items.map(
-        (item: {
-          productId:
-            number;
+        (
+          item: {
+            productId:
+              number;
 
-          variantId:
-            | number
-            | null;
+            quantity:
+              number;
 
-          quantity:
-            number;
-
-          priceOverride:
-            | number
-            | string
-            | null;
-        }) => {
+            priceOverride:
+              | number
+              | string
+              | null;
+          }
+        ) => {
           const product =
             products.find(
               (
@@ -494,63 +537,6 @@ export async function PUT(
             );
           }
 
-          /* -------------------------------------
-             VARIANT
-          ------------------------------------- */
-
-          let variant:
-            | (typeof product.variants)[number]
-            | undefined;
-
-          if (
-            item.variantId !==
-              null &&
-            item.variantId !==
-              undefined &&
-            Number(
-              item.variantId
-            ) > 0
-          ) {
-            variant =
-              product.variants.find(
-                (
-                  variant
-                ) =>
-                  variant.id ===
-                    Number(
-                      item.variantId
-                    ) &&
-                  variant.isActive
-              );
-
-            if (!variant) {
-              throw new Error(
-                `Invalid or inactive variant selected for ${product.name}.`
-              );
-            }
-          }
-
-          const hasActiveVariants =
-            product.variants.some(
-              (
-                variant
-              ) =>
-                variant.isActive
-            );
-
-          if (
-            hasActiveVariants &&
-            !variant
-          ) {
-            throw new Error(
-              `Please select a variant for ${product.name}.`
-            );
-          }
-
-          /* -------------------------------------
-             STANDARD PRICE
-          ------------------------------------- */
-
           const standardPrice =
             Number(
               product.standardPrice
@@ -566,10 +552,6 @@ export async function PUT(
               `Invalid standard price for ${product.name}.`
             );
           }
-
-          /* -------------------------------------
-             PRICE OVERRIDE
-          ------------------------------------- */
 
           const priceOverride =
             item.priceOverride ===
@@ -605,10 +587,6 @@ export async function PUT(
               ? priceOverride
               : standardPrice;
 
-          /* -------------------------------------
-             QUANTITY
-          ------------------------------------- */
-
           const quantity =
             Number(
               item.quantity
@@ -625,16 +603,21 @@ export async function PUT(
             );
           }
 
-          /* -------------------------------------
-             ITEM SNAPSHOT
-          ------------------------------------- */
-
           return {
             productId:
               product.id,
 
+            /*
+             * Variants are intentionally no longer
+             * part of the quotation workflow.
+             *
+             * These fields remain null for database
+             * backward compatibility.
+             */
             variantId:
-              variant?.id ??
+              null,
+
+            variantName:
               null,
 
             productName:
@@ -648,10 +631,6 @@ export async function PUT(
 
             categoryName:
               product.category.name,
-
-            variantName:
-              variant?.name ??
-              null,
 
             annexureSnapshot:
               product.annexureContent ??
@@ -672,17 +651,18 @@ export async function PUT(
         }
       );
 
-    /* =========================================
+    /* =====================================================
        SUBTOTAL
-    ========================================= */
+    ===================================================== */
 
     const subtotal =
       preparedItems.reduce(
         (
           sum: number,
-
-          item:
-            (typeof preparedItems)[number]
+          item: {
+            lineTotal:
+              number;
+          }
         ) =>
           sum +
           item.lineTotal,
@@ -690,17 +670,22 @@ export async function PUT(
         0
       );
 
-    /* =========================================
-       GST PERCENTAGE
-    ========================================= */
+    /* =====================================================
+       GST
+
+       IMPORTANT:
+       Existing document GST rate is preserved.
+
+       We do NOT accept a GST percentage from the form.
+
+       GST TYPE may change automatically if the customer
+       state changes because it depends on company/customer
+       state comparison.
+    ===================================================== */
 
     const gstPercent =
       Number(
-        body.gstPercent ??
-          settings.gst ??
-          existingDocument
-            .gstPercent ??
-          18
+        existingDocument.gstPercent
       );
 
     if (
@@ -713,25 +698,14 @@ export async function PUT(
       return NextResponse.json(
         {
           success: false,
-
           message:
-            "GST percentage must be between 0 and 100.",
+            "Invalid GST percentage on this document.",
         },
         {
-          status: 422,
+          status: 500,
         }
       );
     }
-
-    /* =========================================
-       AUTOMATIC GST TYPE
-
-       Company State == Customer State
-       -> CGST + SGST
-
-       Company State != Customer State
-       -> IGST
-    ========================================= */
 
     const gstType =
       determineGstType({
@@ -741,26 +715,20 @@ export async function PUT(
           settings.companyState,
 
         fallback:
-          settings.gstType ??
-          existingDocument.gstType,
+          existingDocument.gstType ??
+          settings.gstType,
       });
-
-    /* =========================================
-       GST BREAKUP
-    ========================================= */
 
     const cgstPercent =
       gstType ===
       "CGST_SGST"
-        ? gstPercent /
-          2
+        ? gstPercent / 2
         : 0;
 
     const sgstPercent =
       gstType ===
       "CGST_SGST"
-        ? gstPercent /
-          2
+        ? gstPercent / 2
         : 0;
 
     const igstPercent =
@@ -790,10 +758,6 @@ export async function PUT(
         100
       );
 
-    /*
-     * Total GST is the combined
-     * tax amount regardless of type.
-     */
     const gstAmount =
       cgstAmount +
       sgstAmount +
@@ -803,29 +767,36 @@ export async function PUT(
       subtotal +
       gstAmount;
 
-    /* =========================================
-       STATUS
-    ========================================= */
+    /* =====================================================
+       NEXT STATUS
+    ===================================================== */
 
     const nextStatus =
       saveAsDraft
         ? "DRAFT"
         : "PREVIEWED";
 
-    /* =========================================
-       TRANSACTION
-    ========================================= */
+    /* =====================================================
+       UPDATE
+
+       IMPORTANT:
+       documentNumber is deliberately NOT included here.
+
+       Example:
+       SDPM/RJ/26-27/PT/001
+
+       Once assigned, that reference stays attached to
+       this document.
+    ===================================================== */
 
     const updated =
       await prisma.$transaction(
         async (
           tx
         ) => {
-          /*
-           * Existing item/recipient snapshots
-           * are replaced with the newly edited
-           * values.
-           */
+          /* ---------------------------------------------
+             REMOVE OLD ITEMS
+          --------------------------------------------- */
 
           await tx.documentItem.deleteMany({
             where: {
@@ -833,11 +804,19 @@ export async function PUT(
             },
           });
 
+          /* ---------------------------------------------
+             REMOVE OLD RECIPIENTS
+          --------------------------------------------- */
+
           await tx.documentRecipient.deleteMany({
             where: {
               documentId,
             },
           });
+
+          /* ---------------------------------------------
+             UPDATE DOCUMENT
+          --------------------------------------------- */
 
           return tx.document.update({
             where: {
@@ -846,24 +825,27 @@ export async function PUT(
             },
 
             data: {
-              /* ---------------------------------
-                 DOCUMENT
-              --------------------------------- */
+              /*
+               * DO NOT UPDATE documentNumber.
+               */
 
               documentType,
+
+              issuerInitials,
 
               status:
                 nextStatus,
 
               /*
-               * Editing requires approval again.
+               * Editing an approved document requires
+               * approval again.
                */
               approvedAt:
                 null,
 
-              /* ---------------------------------
-                 CUSTOMER SNAPSHOT
-              --------------------------------- */
+              /* -----------------------------------------
+                 CUSTOMER
+              ----------------------------------------- */
 
               customerNameFirm:
                 nameFirmName,
@@ -887,9 +869,9 @@ export async function PUT(
               addressLine3:
                 customerAddressLine3,
 
-              /* ---------------------------------
+              /* -----------------------------------------
                  TOTALS
-              --------------------------------- */
+              ----------------------------------------- */
 
               subtotal,
 
@@ -913,14 +895,21 @@ export async function PUT(
 
               grandTotal,
 
+              /* -----------------------------------------
+                 NOTES
+              ----------------------------------------- */
+
               additionalNotes:
                 cleanString(
                   body.additionalNotes
                 ),
 
-              /* ---------------------------------
-                 SETTINGS SNAPSHOT
-              --------------------------------- */
+              /* -----------------------------------------
+                 SNAPSHOTS
+
+                 Refresh these from current Admin Settings
+                 when the document is edited.
+              ----------------------------------------- */
 
               headerBannerSnapshot:
                 settings.headerBanner ||
@@ -942,22 +931,32 @@ export async function PUT(
                 settings.quoteFooter ||
                 null,
 
+              /*
+               * Bank details only apply to Order Forms.
+               */
+              bankDetailsSnapshot:
+                documentType ===
+                "ORDER_FORM"
+                  ? settings.bankDetails ||
+                    null
+                  : null,
+
               signatureImageSnapshot:
                 settings.signatureImage ||
                 null,
 
-              /* ---------------------------------
+              /* -----------------------------------------
                  ITEMS
-              --------------------------------- */
+              ----------------------------------------- */
 
               items: {
                 create:
                   preparedItems,
               },
 
-              /* ---------------------------------
+              /* -----------------------------------------
                  RECIPIENTS
-              --------------------------------- */
+              ----------------------------------------- */
 
               recipients: {
                 create: [
@@ -985,9 +984,9 @@ export async function PUT(
                 ],
               },
 
-              /* ---------------------------------
+              /* -----------------------------------------
                  ACTIVITY
-              --------------------------------- */
+              ----------------------------------------- */
 
               activities: {
                 create: {
@@ -998,8 +997,8 @@ export async function PUT(
 
                   description:
                     saveAsDraft
-                      ? `Draft saved by ${session.name}. GST type: ${gstType}.`
-                      : `Document edited by ${session.name}. Approval required again. GST type: ${gstType}.`,
+                      ? `Draft saved by ${session.name}. Reference remains ${existingDocument.documentNumber}. Issuer: ${issuerInitials}. GST type: ${gstType}.`
+                      : `Document edited by ${session.name}. Approval required again. Reference remains ${existingDocument.documentNumber}. Issuer: ${issuerInitials}. GST type: ${gstType}.`,
                 },
               },
             },
@@ -1011,7 +1010,16 @@ export async function PUT(
               documentNumber:
                 true,
 
+              documentType:
+                true,
+
+              issuerInitials:
+                true,
+
               status:
+                true,
+
+              customerState:
                 true,
 
               gstType:
@@ -1048,9 +1056,9 @@ export async function PUT(
         }
       );
 
-    /* =========================================
+    /* =====================================================
        RESPONSE
-    ========================================= */
+    ===================================================== */
 
     return NextResponse.json({
       success:
@@ -1061,48 +1069,12 @@ export async function PUT(
           ? "Draft saved successfully."
           : "Document updated successfully.",
 
-      data: {
-        id:
-          updated.id,
-
-        documentNumber:
-          updated.documentNumber,
-
-        status:
-          updated.status,
-
-        gstType:
-          updated.gstType,
-
-        gstPercent:
-          updated.gstPercent,
-
-        cgstPercent:
-          updated.cgstPercent,
-
-        cgstAmount:
-          updated.cgstAmount,
-
-        sgstPercent:
-          updated.sgstPercent,
-
-        sgstAmount:
-          updated.sgstAmount,
-
-        igstPercent:
-          updated.igstPercent,
-
-        igstAmount:
-          updated.igstAmount,
-
-        gstAmount:
-          updated.gstAmount,
-
-        grandTotal:
-          updated.grandTotal,
-      },
+      data:
+        updated,
     });
-  } catch (error) {
+  } catch (
+    error
+  ) {
     console.error(
       "UPDATE DOCUMENT ERROR:",
       error

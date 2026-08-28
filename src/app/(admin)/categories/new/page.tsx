@@ -1,6 +1,8 @@
 import Link from "next/link";
 import CategoryForm from "@/components/categories/category-form";
 
+export const dynamic = "force-dynamic";
+
 export default function NewCategoryPage() {
   return (
     <div className="space-y-6">
