@@ -1184,21 +1184,19 @@ export default function DocumentForm({
                 Quotation
               </DocumentTypeButton>
 
-              {!publicMode && (
-                <DocumentTypeButton
-                  active={
-                    documentType ===
-                    "ORDER_FORM"
-                  }
-                  onClick={() =>
-                    setDocumentType(
-                      "ORDER_FORM"
-                    )
-                  }
-                >
-                  Order Form
-                </DocumentTypeButton>
-              )}
+              <DocumentTypeButton
+  active={
+    documentType ===
+    "ORDER_FORM"
+  }
+  onClick={() =>
+    setDocumentType(
+      "ORDER_FORM"
+    )
+  }
+>
+  Order Form
+</DocumentTypeButton>
             </div>
           </div>
 

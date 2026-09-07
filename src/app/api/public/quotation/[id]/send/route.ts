@@ -20,29 +20,36 @@ type RouteContext = {
   }>;
 };
 
+/* =========================================================
+   HELPERS
+========================================================= */
+
 function parseEmails(
   value: string
 ) {
   return value
     .split(/[;,]/)
-    .map(
-      (
-        email
-      ) =>
-        email
-          .trim()
-          .toLowerCase()
+    .map((email) =>
+      email
+        .trim()
+        .toLowerCase()
     )
-    .filter(
-      Boolean
-    );
+    .filter(Boolean);
 }
+
+/* =========================================================
+   SEND DOCUMENT
+========================================================= */
 
 export async function POST(
   request: NextRequest,
   context: RouteContext
 ) {
   try {
+    /* =====================================================
+       DOCUMENT ID
+    ===================================================== */
+
     const { id } =
       await context.params;
 
@@ -52,78 +59,113 @@ export async function POST(
     if (
       !Number.isInteger(
         documentId
-      )
+      ) ||
+      documentId <= 0
     ) {
       return NextResponse.json(
         {
-          success:
-            false,
+          success: false,
 
           message:
-            "Invalid quotation ID.",
+            "Invalid document ID.",
         },
         {
-          status:
-            400,
+          status: 400,
         }
       );
     }
 
-    const quotation =
-      await prisma.document.findFirst({
+    /* =====================================================
+       LOAD PUBLIC DOCUMENT
+    ===================================================== */
+
+    const publicDocument =
+      await prisma.document.findUnique({
         where: {
           id:
             documentId,
-
-          documentType:
-            "QUOTATION",
         },
 
         select: {
           id:
             true,
 
+          documentNumber:
+            true,
+
+          documentType:
+            true,
+
           status:
+            true,
+
+          customerNameFirm:
             true,
         },
       });
 
-    if (!quotation) {
+    /* =====================================================
+       VALIDATE DOCUMENT TYPE
+    ===================================================== */
+
+    if (
+      !publicDocument ||
+      (
+        publicDocument.documentType !==
+          "QUOTATION" &&
+        publicDocument.documentType !==
+          "ORDER_FORM"
+      )
+    ) {
       return NextResponse.json(
         {
-          success:
-            false,
+          success: false,
 
           message:
-            "Quotation not found.",
+            "Document not found.",
         },
         {
-          status:
-            404,
+          status: 404,
         }
       );
     }
 
+    /* =====================================================
+       VALIDATE STATUS
+    ===================================================== */
+
     if (
-      quotation.status !==
+      publicDocument.status !==
         "APPROVED" &&
-      quotation.status !==
+      publicDocument.status !==
         "SENT"
     ) {
       return NextResponse.json(
         {
-          success:
-            false,
+          success: false,
 
           message:
-            "Quotation must be approved before sending.",
+            "Document must be approved before sending.",
         },
         {
-          status:
-            400,
+          status: 400,
         }
       );
     }
+
+    /* =====================================================
+       DOCUMENT LABEL
+    ===================================================== */
+
+    const documentLabel =
+      publicDocument.documentType ===
+      "ORDER_FORM"
+        ? "Order Form"
+        : "Quotation";
+
+    /* =====================================================
+       REQUEST BODY
+    ===================================================== */
 
     const body =
       await request.json();
@@ -156,21 +198,23 @@ export async function POST(
           ""
       ).trim();
 
+    /* =====================================================
+       VALIDATION
+    ===================================================== */
+
     if (
       toEmails.length ===
       0
     ) {
       return NextResponse.json(
         {
-          success:
-            false,
+          success: false,
 
           message:
             "At least one recipient email is required.",
         },
         {
-          status:
-            422,
+          status: 422,
         }
       );
     }
@@ -178,18 +222,20 @@ export async function POST(
     if (!subject) {
       return NextResponse.json(
         {
-          success:
-            false,
+          success: false,
 
           message:
             "Email subject is required.",
         },
         {
-          status:
-            422,
+          status: 422,
         }
       );
     }
+
+    /* =====================================================
+       GENERATE PDF
+    ===================================================== */
 
     const {
       document,
@@ -199,6 +245,10 @@ export async function POST(
       await generateDocumentPdf(
         documentId
       );
+
+    /* =====================================================
+       EMAIL
+    ===================================================== */
 
     await mailTransporter.sendMail({
       from:
@@ -217,7 +267,7 @@ export async function POST(
 
       text:
         message ||
-        `Please find attached ${document.documentNumber}.`,
+        `Please find attached ${documentLabel} ${document.documentNumber}.`,
 
       attachments: [
         {
@@ -231,6 +281,10 @@ export async function POST(
         },
       ],
     });
+
+    /* =====================================================
+       UPDATE DOCUMENT
+    ===================================================== */
 
     await prisma.document.update({
       where: {
@@ -251,7 +305,7 @@ export async function POST(
               "DOCUMENT_SENT",
 
             description:
-              `Quotation sent from public quotation workflow to ${toEmails.join(
+              `${documentLabel} sent from public document workflow to ${toEmails.join(
                 ", "
               )}${
                 ccEmails.length
@@ -259,39 +313,57 @@ export async function POST(
                       ", "
                     )}`
                   : ""
-              }`,
+              }.`,
           },
         },
       },
     });
+
+    /* =====================================================
+       RESPONSE
+    ===================================================== */
 
     return NextResponse.json({
       success:
         true,
 
       message:
-        "Quotation sent successfully.",
+        `${documentLabel} sent successfully.`,
+
+      data: {
+        id:
+          publicDocument.id,
+
+        documentNumber:
+          publicDocument.documentNumber,
+
+        documentType:
+          publicDocument.documentType,
+
+        status:
+          "SENT",
+      },
     });
-  } catch (error) {
+  } catch (
+    error
+  ) {
     console.error(
-      "PUBLIC QUOTATION SEND ERROR:",
+      "PUBLIC DOCUMENT SEND ERROR:",
       error
     );
 
     return NextResponse.json(
       {
-        success:
-          false,
+        success: false,
 
         message:
           error instanceof
             Error
             ? error.message
-            : "Unable to send quotation.",
+            : "Unable to send document.",
       },
       {
-        status:
-          500,
+        status: 500,
       }
     );
   }

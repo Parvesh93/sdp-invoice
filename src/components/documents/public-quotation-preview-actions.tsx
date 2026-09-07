@@ -9,13 +9,21 @@ import {
 } from "next/navigation";
 
 type Props = {
-  documentId: number;
-  currentStatus: string;
+  documentId:
+    number;
+
+  currentStatus:
+    string;
+
+  documentType:
+    "QUOTATION" |
+    "ORDER_FORM";
 };
 
 export default function PublicQuotationPreviewActions({
   documentId,
   currentStatus,
+  documentType,
 }: Props) {
   const router =
     useRouter();
@@ -23,25 +31,42 @@ export default function PublicQuotationPreviewActions({
   const [
     loading,
     setLoading,
-  ] = useState(false);
+  ] = useState(
+    false
+  );
 
   const [
     error,
     setError,
-  ] = useState("");
+  ] = useState(
+    ""
+  );
 
-  async function approveQuotation() {
+  const documentLabel =
+    documentType ===
+    "ORDER_FORM"
+      ? "order form"
+      : "quotation";
+
+  async function approveDocument() {
     const confirmed =
       window.confirm(
-        "Are you sure you want to approve this quotation?"
+        `Are you sure you want to approve this ${documentLabel}?`
       );
 
-    if (!confirmed) {
+    if (
+      !confirmed
+    ) {
       return;
     }
 
-    setLoading(true);
-    setError("");
+    setLoading(
+      true
+    );
+
+    setError(
+      ""
+    );
 
     try {
       const response =
@@ -66,7 +91,7 @@ export default function PublicQuotationPreviewActions({
       ) {
         throw new Error(
           result.message ??
-            "Unable to approve quotation."
+            `Unable to approve ${documentLabel}.`
         );
       }
 
@@ -85,7 +110,9 @@ export default function PublicQuotationPreviewActions({
           : "Something went wrong."
       );
     } finally {
-      setLoading(false);
+      setLoading(
+        false
+      );
     }
   }
 
@@ -115,7 +142,7 @@ export default function PublicQuotationPreviewActions({
       <button
         type="button"
         onClick={
-          approveQuotation
+          approveDocument
         }
         disabled={
           loading

@@ -6,7 +6,7 @@ import { getSettings } from "@/lib/settings";
 export const dynamic =
   "force-dynamic";
 
-export default async function PublicQuotationPage() {
+export default async function PublicDocumentPage() {
   const [
     categories,
     products,
@@ -21,8 +21,11 @@ export default async function PublicQuotationPage() {
         },
 
         select: {
-          id: true,
-          name: true,
+          id:
+            true,
+
+          name:
+            true,
         },
 
         orderBy: {
@@ -38,13 +41,21 @@ export default async function PublicQuotationPage() {
         },
 
         select: {
-          id: true,
-          name: true,
-          model: true,
+          id:
+            true,
+
+          name:
+            true,
+
+          model:
+            true,
+
           description:
             true,
+
           categoryId:
             true,
+
           standardPrice:
             true,
         },
@@ -55,27 +66,38 @@ export default async function PublicQuotationPage() {
         },
       }),
 
-      /*
-       * Client specifically requires existing
-       * customer selection on this page.
-       */
       prisma.customer.findMany({
         select: {
-          id: true,
+          id:
+            true,
+
           nameFirmName:
             true,
-          email: true,
-          phone: true,
+
+          email:
+            true,
+
+          phone:
+            true,
+
           whatsapp:
             true,
+
           gstNumber:
             true,
-          city: true,
-          state: true,
+
+          city:
+            true,
+
+          state:
+            true,
+
           addressLine1:
             true,
+
           addressLine2:
             true,
+
           addressLine3:
             true,
         },
@@ -91,7 +113,9 @@ export default async function PublicQuotationPage() {
 
   return (
     <main className="min-h-screen bg-slate-100">
-      {/* Header */}
+      {/* =====================================
+          HEADER
+      ===================================== */}
 
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-5 lg:px-8">
@@ -101,27 +125,28 @@ export default async function PublicQuotationPage() {
             </div>
 
             <div className="mt-0.5 text-xs uppercase tracking-[0.18em] text-slate-400">
-              Quotation Generator
+              Document Generator
             </div>
           </div>
 
           <div className="hidden text-sm text-slate-500 sm:block">
-            Quotation Management System
+            Quotation & Order Form Management
           </div>
         </div>
       </header>
 
-      {/* Content */}
+      {/* =====================================
+          CONTENT
+      ===================================== */}
 
       <div className="mx-auto max-w-7xl px-5 py-8 lg:px-8">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-slate-950">
-            Create Quotation
+          <h1 className="text-2xl font-bold text-slate-950 sm:text-3xl">
+            Create Document
           </h1>
 
           <p className="mt-1 text-sm text-slate-500">
-            Select an existing customer or create a new one,
-            add machines and generate the quotation.
+            Create a quotation or order form.
           </p>
         </div>
 

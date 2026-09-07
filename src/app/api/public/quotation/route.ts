@@ -163,6 +163,12 @@ export async function POST(
     const settings =
       await getSettings();
 
+      const documentType =
+  body.documentType ===
+  "ORDER_FORM"
+    ? "ORDER_FORM"
+    : "QUOTATION";
+
     /* =====================================================
        ISSUER INITIALS
     ===================================================== */
@@ -737,8 +743,7 @@ export async function POST(
         data: {
           documentNumber,
 
-          documentType:
-            "QUOTATION",
+          documentType,
 
           status:
             "PREVIEWED",
@@ -832,7 +837,11 @@ export async function POST(
            * therefore bank details are not required.
            */
           bankDetailsSnapshot:
-            null,
+  documentType ===
+  "ORDER_FORM"
+    ? settings.bankDetails ||
+      null
+    : null,
 
           createdById:
             systemOwner.id,
@@ -881,14 +890,22 @@ export async function POST(
           --------------------------------------------- */
 
           activities: {
-            create: {
-              action:
-                "PUBLIC_QUOTATION_CREATED",
+  create: {
+    action:
+      documentType ===
+      "ORDER_FORM"
+        ? "PUBLIC_ORDER_FORM_CREATED"
+        : "PUBLIC_QUOTATION_CREATED",
 
-              description:
-                `Quotation generated from public quotation page. Reference: ${documentNumber}. Issuer: ${issuerInitials}. State: ${customerState}. GST type: ${gstType}.`,
-            },
-          },
+    description:
+      `${
+        documentType ===
+        "ORDER_FORM"
+          ? "Order Form"
+          : "Quotation"
+      } generated from public document page. Reference: ${documentNumber}. Issuer: ${issuerInitials}. State: ${customerState}. GST type: ${gstType}.`,
+  },
+},
         },
 
         select: {

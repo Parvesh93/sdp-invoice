@@ -34,7 +34,7 @@ export async function POST(
             false,
 
           message:
-            "Invalid quotation ID.",
+            "Invalid document ID.",
         },
         {
           status:
@@ -44,24 +44,29 @@ export async function POST(
     }
 
     const existingDocument =
-      await prisma.document.findFirst({
+      await prisma.document.findUnique({
         where: {
           id:
             documentId,
-
-          documentType:
-            "QUOTATION",
         },
       });
 
-    if (!existingDocument) {
+    if (
+      !existingDocument ||
+      (
+        existingDocument.documentType !==
+          "QUOTATION" &&
+        existingDocument.documentType !==
+          "ORDER_FORM"
+      )
+    ) {
       return NextResponse.json(
         {
           success:
             false,
 
           message:
-            "Quotation not found.",
+            "Document not found.",
         },
         {
           status:
@@ -80,7 +85,7 @@ export async function POST(
             false,
 
           message:
-            "A sent quotation cannot be approved again.",
+            "A sent document cannot be approved again.",
         },
         {
           status:
@@ -88,6 +93,12 @@ export async function POST(
         }
       );
     }
+
+    const documentLabel =
+      existingDocument.documentType ===
+      "ORDER_FORM"
+        ? "Order Form"
+        : "Quotation";
 
     const document =
       await prisma.document.update({
@@ -109,7 +120,7 @@ export async function POST(
                 "DOCUMENT_APPROVED",
 
               description:
-                "Quotation approved from public quotation workflow.",
+                `${documentLabel} approved from public document workflow.`,
             },
           },
         },
@@ -119,6 +130,9 @@ export async function POST(
             true,
 
           documentNumber:
+            true,
+
+          documentType:
             true,
 
           status:
@@ -134,13 +148,15 @@ export async function POST(
         true,
 
       message:
-        "Quotation approved successfully.",
+        `${documentLabel} approved successfully.`,
 
       document,
     });
-  } catch (error) {
+  } catch (
+    error
+  ) {
     console.error(
-      "PUBLIC APPROVE QUOTATION ERROR:",
+      "PUBLIC APPROVE DOCUMENT ERROR:",
       error
     );
 
@@ -153,7 +169,7 @@ export async function POST(
           error instanceof
             Error
             ? error.message
-            : "Unable to approve quotation.",
+            : "Unable to approve document.",
       },
       {
         status:

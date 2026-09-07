@@ -22,6 +22,10 @@ export async function GET(
   context: RouteContext
 ) {
   try {
+    /* =====================================================
+       DOCUMENT ID
+    ===================================================== */
+
     const { id } =
       await context.params;
 
@@ -31,13 +35,15 @@ export async function GET(
     if (
       !Number.isInteger(
         documentId
-      )
+      ) ||
+      documentId <= 0
     ) {
       return NextResponse.json(
         {
           success: false,
+
           message:
-            "Invalid quotation ID.",
+            "Invalid document ID.",
         },
         {
           status: 400,
@@ -45,33 +51,67 @@ export async function GET(
       );
     }
 
-    const quotation =
-      await prisma.document.findFirst({
+    /* =====================================================
+       FIND DOCUMENT
+    ===================================================== */
+
+    const document =
+      await prisma.document.findUnique({
         where: {
           id:
             documentId,
-
-          documentType:
-            "QUOTATION",
         },
 
         select: {
-          id: true,
+          id:
+            true,
+
+          documentType:
+            true,
+
+          status:
+            true,
         },
       });
 
-    if (!quotation) {
+    /* =====================================================
+       VALIDATE DOCUMENT
+    ===================================================== */
+
+    if (
+      !document ||
+      (
+        document.documentType !==
+          "QUOTATION" &&
+        document.documentType !==
+          "ORDER_FORM"
+      )
+    ) {
       return NextResponse.json(
         {
           success: false,
+
           message:
-            "Quotation not found.",
+            "Document not found.",
         },
         {
           status: 404,
         }
       );
     }
+
+    /*
+     * IMPORTANT:
+     *
+     * Do NOT require APPROVED status here.
+     *
+     * This is the PREVIEW endpoint, therefore
+     * PREVIEWED documents must be renderable.
+     */
+
+    /* =====================================================
+       GENERATE PDF
+    ===================================================== */
 
     const {
       buffer,
@@ -80,6 +120,10 @@ export async function GET(
       await generateDocumentPdf(
         documentId
       );
+
+    /* =====================================================
+       RESPONSE
+    ===================================================== */
 
     return new Response(
       new Uint8Array(
@@ -97,12 +141,20 @@ export async function GET(
 
           "Cache-Control":
             "no-store, no-cache, must-revalidate",
+
+          Pragma:
+            "no-cache",
+
+          Expires:
+            "0",
         },
       }
     );
-  } catch (error) {
+  } catch (
+    error
+  ) {
     console.error(
-      "PUBLIC PREVIEW PDF ERROR:",
+      "PUBLIC DOCUMENT PREVIEW PDF ERROR:",
       error
     );
 
@@ -111,9 +163,10 @@ export async function GET(
         success: false,
 
         message:
-          error instanceof Error
+          error instanceof
+            Error
             ? error.message
-            : "Unable to generate quotation preview.",
+            : "Unable to generate document preview.",
       },
       {
         status: 500,
