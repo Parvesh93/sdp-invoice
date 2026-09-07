@@ -7,6 +7,10 @@ import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getSettings } from "@/lib/settings";
 
+import {
+  rebuildDocumentNumber,
+} from "@/lib/document-number";
+
 type RouteContext = {
   params: Promise<{
     id: string;
@@ -173,12 +177,15 @@ export async function PUT(
     if (!session) {
       return NextResponse.json(
         {
-          success: false,
+          success:
+            false,
+
           message:
             "Unauthorized.",
         },
         {
-          status: 401,
+          status:
+            401,
         }
       );
     }
@@ -197,16 +204,20 @@ export async function PUT(
       !Number.isInteger(
         documentId
       ) ||
-      documentId <= 0
+      documentId <=
+        0
     ) {
       return NextResponse.json(
         {
-          success: false,
+          success:
+            false,
+
           message:
             "Invalid document ID.",
         },
         {
-          status: 400,
+          status:
+            400,
         }
       );
     }
@@ -223,23 +234,23 @@ export async function PUT(
         },
       });
 
-    if (!existingDocument) {
+    if (
+      !existingDocument
+    ) {
       return NextResponse.json(
         {
-          success: false,
+          success:
+            false,
+
           message:
             "Document not found.",
         },
         {
-          status: 404,
+          status:
+            404,
         }
       );
     }
-
-    /*
-     * Once a document has been sent,
-     * it should remain immutable.
-     */
 
     if (
       existingDocument.status ===
@@ -247,12 +258,15 @@ export async function PUT(
     ) {
       return NextResponse.json(
         {
-          success: false,
+          success:
+            false,
+
           message:
             "Sent documents cannot be edited.",
         },
         {
-          status: 400,
+          status:
+            400,
         }
       );
     }
@@ -286,15 +300,20 @@ export async function PUT(
         body.issuerInitials
       );
 
-    if (!issuerInitials) {
+    if (
+      !issuerInitials
+    ) {
       return NextResponse.json(
         {
-          success: false,
+          success:
+            false,
+
           message:
             "Issuer initials are required.",
         },
         {
-          status: 422,
+          status:
+            422,
         }
       );
     }
@@ -304,7 +323,8 @@ export async function PUT(
     ===================================================== */
 
     const customer =
-      body.customer ?? {};
+      body.customer ??
+      {};
 
     const nameFirmName =
       String(
@@ -312,15 +332,20 @@ export async function PUT(
           ""
       ).trim();
 
-    if (!nameFirmName) {
+    if (
+      !nameFirmName
+    ) {
       return NextResponse.json(
         {
-          success: false,
+          success:
+            false,
+
           message:
             "Name / Firm Name is required.",
         },
         {
-          status: 422,
+          status:
+            422,
         }
       );
     }
@@ -350,24 +375,20 @@ export async function PUT(
         customer.state
       );
 
-    /*
-     * State is mandatory now because the state
-     * is part of the reference-number structure.
-     *
-     * IMPORTANT:
-     * The existing reference number is NOT regenerated
-     * when editing a document.
-     */
-
-    if (!customerState) {
+    if (
+      !customerState
+    ) {
       return NextResponse.json(
         {
-          success: false,
+          success:
+            false,
+
           message:
             "Customer state is required.",
         },
         {
-          status: 422,
+          status:
+            422,
         }
       );
     }
@@ -404,6 +425,33 @@ export async function PUT(
       );
 
     /* =====================================================
+       REBUILD DOCUMENT NUMBER
+
+       Example:
+
+       Existing:
+       SDPM/JK/26-27/MB/016
+
+       State changed to Gujarat:
+       SDPM/GJ/26-27/MB/016
+
+       Issuer changed to PT:
+       SDPM/GJ/26-27/PT/016
+
+       Financial year and sequence remain unchanged.
+    ===================================================== */
+
+    const updatedDocumentNumber =
+      rebuildDocumentNumber({
+        existingDocumentNumber:
+          existingDocument.documentNumber,
+
+        customerState,
+
+        issuerInitials,
+      });
+
+    /* =====================================================
        PRODUCTS
     ===================================================== */
 
@@ -416,12 +464,15 @@ export async function PUT(
     ) {
       return NextResponse.json(
         {
-          success: false,
+          success:
+            false,
+
           message:
             "At least one product is required.",
         },
         {
-          status: 422,
+          status:
+            422,
         }
       );
     }
@@ -448,17 +499,21 @@ export async function PUT(
           !Number.isInteger(
             productId
           ) ||
-          productId <= 0
+          productId <=
+            0
       )
     ) {
       return NextResponse.json(
         {
-          success: false,
+          success:
+            false,
+
           message:
             "One or more selected products are invalid.",
         },
         {
-          status: 422,
+          status:
+            422,
         }
       );
     }
@@ -490,12 +545,15 @@ export async function PUT(
     ) {
       return NextResponse.json(
         {
-          success: false,
+          success:
+            false,
+
           message:
             "One or more selected products are invalid.",
         },
         {
-          status: 422,
+          status:
+            422,
         }
       );
     }
@@ -531,7 +589,9 @@ export async function PUT(
                 )
             );
 
-          if (!product) {
+          if (
+            !product
+          ) {
             throw new Error(
               "One or more selected products are invalid."
             );
@@ -546,7 +606,8 @@ export async function PUT(
             !Number.isFinite(
               standardPrice
             ) ||
-            standardPrice < 0
+            standardPrice <
+              0
           ) {
             throw new Error(
               `Invalid standard price for ${product.name}.`
@@ -560,7 +621,8 @@ export async function PUT(
               undefined ||
             String(
               item.priceOverride
-            ).trim() === ""
+            ).trim() ===
+              ""
               ? null
               : Number(
                   item.priceOverride
@@ -573,7 +635,8 @@ export async function PUT(
               !Number.isFinite(
                 priceOverride
               ) ||
-              priceOverride < 0
+              priceOverride <
+                0
             )
           ) {
             throw new Error(
@@ -596,7 +659,8 @@ export async function PUT(
             !Number.isInteger(
               quantity
             ) ||
-            quantity < 1
+            quantity <
+              1
           ) {
             throw new Error(
               `Quantity must be at least 1 for ${product.name}.`
@@ -607,13 +671,6 @@ export async function PUT(
             productId:
               product.id,
 
-            /*
-             * Variants are intentionally no longer
-             * part of the quotation workflow.
-             *
-             * These fields remain null for database
-             * backward compatibility.
-             */
             variantId:
               null,
 
@@ -658,7 +715,9 @@ export async function PUT(
     const subtotal =
       preparedItems.reduce(
         (
-          sum: number,
+          sum:
+            number,
+
           item: {
             lineTotal:
               number;
@@ -673,14 +732,9 @@ export async function PUT(
     /* =====================================================
        GST
 
-       IMPORTANT:
-       Existing document GST rate is preserved.
+       Existing GST rate is preserved.
 
-       We do NOT accept a GST percentage from the form.
-
-       GST TYPE may change automatically if the customer
-       state changes because it depends on company/customer
-       state comparison.
+       GST type is recalculated if customer state changes.
     ===================================================== */
 
     const gstPercent =
@@ -692,17 +746,22 @@ export async function PUT(
       !Number.isFinite(
         gstPercent
       ) ||
-      gstPercent < 0 ||
-      gstPercent > 100
+      gstPercent <
+        0 ||
+      gstPercent >
+        100
     ) {
       return NextResponse.json(
         {
-          success: false,
+          success:
+            false,
+
           message:
             "Invalid GST percentage on this document.",
         },
         {
-          status: 500,
+          status:
+            500,
         }
       );
     }
@@ -722,13 +781,15 @@ export async function PUT(
     const cgstPercent =
       gstType ===
       "CGST_SGST"
-        ? gstPercent / 2
+        ? gstPercent /
+          2
         : 0;
 
     const sgstPercent =
       gstType ===
       "CGST_SGST"
-        ? gstPercent / 2
+        ? gstPercent /
+          2
         : 0;
 
     const igstPercent =
@@ -778,15 +839,6 @@ export async function PUT(
 
     /* =====================================================
        UPDATE
-
-       IMPORTANT:
-       documentNumber is deliberately NOT included here.
-
-       Example:
-       SDPM/RJ/26-27/PT/001
-
-       Once assigned, that reference stays attached to
-       this document.
     ===================================================== */
 
     const updated =
@@ -825,9 +877,12 @@ export async function PUT(
             },
 
             data: {
-              /*
-               * DO NOT UPDATE documentNumber.
-               */
+              /* -----------------------------------------
+                 REFERENCE NUMBER
+              ----------------------------------------- */
+
+              documentNumber:
+                updatedDocumentNumber,
 
               documentType,
 
@@ -837,8 +892,7 @@ export async function PUT(
                 nextStatus,
 
               /*
-               * Editing an approved document requires
-               * approval again.
+               * Editing requires approval again.
                */
               approvedAt:
                 null,
@@ -906,9 +960,6 @@ export async function PUT(
 
               /* -----------------------------------------
                  SNAPSHOTS
-
-                 Refresh these from current Admin Settings
-                 when the document is edited.
               ----------------------------------------- */
 
               headerBannerSnapshot:
@@ -931,9 +982,6 @@ export async function PUT(
                 settings.quoteFooter ||
                 null,
 
-              /*
-               * Bank details only apply to Order Forms.
-               */
               bankDetailsSnapshot:
                 documentType ===
                 "ORDER_FORM"
@@ -997,8 +1045,8 @@ export async function PUT(
 
                   description:
                     saveAsDraft
-                      ? `Draft saved by ${session.name}. Reference remains ${existingDocument.documentNumber}. Issuer: ${issuerInitials}. GST type: ${gstType}.`
-                      : `Document edited by ${session.name}. Approval required again. Reference remains ${existingDocument.documentNumber}. Issuer: ${issuerInitials}. GST type: ${gstType}.`,
+                      ? `Draft saved by ${session.name}. Reference updated from ${existingDocument.documentNumber} to ${updatedDocumentNumber}. Issuer: ${issuerInitials}. GST type: ${gstType}.`
+                      : `Document edited by ${session.name}. Approval required again. Reference updated from ${existingDocument.documentNumber} to ${updatedDocumentNumber}. Issuer: ${issuerInitials}. GST type: ${gstType}.`,
                 },
               },
             },

@@ -195,3 +195,89 @@ export async function generateDocumentNumber({
 
   return `${basePrefix}${paddedSequence}`;
 }
+
+
+export function rebuildDocumentNumber({
+  existingDocumentNumber,
+  customerState,
+  issuerInitials,
+}: {
+  existingDocumentNumber: string;
+  customerState: string;
+  issuerInitials: string;
+}) {
+  const stateCode =
+    getStateCode(
+      customerState
+    );
+
+  if (!stateCode) {
+    throw new Error(
+      "Please select a valid Indian state."
+    );
+  }
+
+  const initials =
+    cleanInitials(
+      issuerInitials
+    );
+
+  if (!initials) {
+    throw new Error(
+      "Issuer initials are required."
+    );
+  }
+
+  const parts =
+    existingDocumentNumber.split(
+      "/"
+    );
+
+  /*
+   * Expected current format:
+   *
+   * SDPM/RJ/26-27/PT/016
+   */
+  if (
+    parts.length < 5
+  ) {
+    throw new Error(
+      "Existing document reference has an invalid format."
+    );
+  }
+
+  const sequence =
+    parts[
+      parts.length - 1
+    ];
+
+  /*
+   * Preserve the FY already assigned to this document.
+   */
+  const financialYear =
+    parts[
+      parts.length - 3
+    ];
+
+  if (
+    !/^\d{2}-\d{2}$/.test(
+      financialYear
+    )
+  ) {
+    throw new Error(
+      "Existing document financial year is invalid."
+    );
+  }
+
+  if (
+    !/^\d+$/.test(
+      sequence
+    )
+  ) {
+    throw new Error(
+      "Existing document sequence is invalid."
+    );
+  }
+
+  return `SDPM/${stateCode}/${financialYear}/${initials}/${sequence}`;
+}
